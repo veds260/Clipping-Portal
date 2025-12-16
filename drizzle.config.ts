@@ -1,7 +1,7 @@
 import { config } from 'dotenv';
 import { defineConfig } from 'drizzle-kit';
 
-// Load .env.local
+// Load .env.local for local development (Railway sets env vars directly)
 config({ path: '.env.local' });
 
 export default defineConfig({
