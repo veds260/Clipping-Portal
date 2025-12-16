@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -17,11 +18,19 @@ import {
   Radio,
   Briefcase,
   Megaphone,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { BrandLogo, BrandIcon } from '@/components/shared/brand-logo';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface NavItem {
   title: string;
@@ -61,9 +70,29 @@ interface SidebarProps {
   variant?: 'admin' | 'clipper';
 }
 
+const SIDEBAR_COLLAPSED_KEY = 'sidebar-collapsed';
+
 export function Sidebar({ userRole, userName, variant }: SidebarProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Load collapsed state from localStorage on mount
+  useEffect(() => {
+    setMounted(true);
+    const stored = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
+    if (stored !== null) {
+      setIsCollapsed(stored === 'true');
+    }
+  }, []);
+
+  // Save collapsed state to localStorage
+  const toggleCollapsed = () => {
+    const newValue = !isCollapsed;
+    setIsCollapsed(newValue);
+    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(newValue));
+  };
 
   // Support both old variant prop and new userRole prop
   const role = userRole || variant || 'clipper';
@@ -85,68 +114,161 @@ export function Sidebar({ userRole, userName, variant }: SidebarProps) {
     return 'Clipper Portal';
   };
 
+  // Prevent hydration mismatch by rendering expanded state initially
+  const collapsed = mounted ? isCollapsed : false;
+
   return (
-    <div className="flex h-full w-64 flex-col border-r bg-sidebar text-sidebar-foreground">
-      <div className="p-6">
-        <Link href={getHomeUrl()} className="block">
-          <BrandLogo className="h-8 w-auto text-white" />
-          <p className="text-xs text-sidebar-foreground/60 mt-1">
-            {getPortalName()}
-          </p>
-        </Link>
-      </div>
-
-      <ScrollArea className="flex-1 px-3">
-        <nav className="space-y-1">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href ||
-              (item.href !== '/admin' && item.href !== '/clipper' && item.href !== '/client' && pathname.startsWith(item.href));
-
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
-                  isActive
-                    ? 'bg-sidebar-primary text-sidebar-primary-foreground'
-                    : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
-                )}
-              >
-                <item.icon className="h-4 w-4" />
-                {item.title}
-              </Link>
-            );
-          })}
-        </nav>
-      </ScrollArea>
-
-      <div className="border-t border-sidebar-border p-4">
-        <div className="flex items-center gap-3 mb-3">
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={session?.user?.image || undefined} />
-            <AvatarFallback className="bg-primary text-primary-foreground">
-              {session?.user?.name?.charAt(0).toUpperCase() || 'U'}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate text-sidebar-foreground">
-              {session?.user?.name || 'User'}
-            </p>
-            <p className="text-xs text-sidebar-foreground/60 truncate">
-              {session?.user?.email}
-            </p>
-          </div>
+    <TooltipProvider delayDuration={0}>
+      <div
+        className={cn(
+          'flex h-full flex-col border-r bg-sidebar text-sidebar-foreground transition-all duration-300',
+          collapsed ? 'w-16' : 'w-64'
+        )}
+      >
+        {/* Header */}
+        <div className={cn('p-4', collapsed ? 'px-2' : 'p-6')}>
+          <Link href={getHomeUrl()} className="block">
+            {collapsed ? (
+              <div className="flex justify-center">
+                <BrandIcon className="h-8 w-8 text-white" />
+              </div>
+            ) : (
+              <>
+                <BrandLogo className="h-8 w-auto text-white" />
+                <p className="text-xs text-sidebar-foreground/60 mt-1">
+                  {getPortalName()}
+                </p>
+              </>
+            )}
+          </Link>
         </div>
-        <Button
-          variant="ghost"
-          className="w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-          onClick={handleSignOut}
-        >
-          <LogOut className="h-4 w-4 mr-2" />
-          Sign out
-        </Button>
+
+        {/* Collapse Toggle Button */}
+        <div className={cn('px-3 mb-2', collapsed && 'px-2')}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggleCollapsed}
+            className={cn(
+              'w-full text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent',
+              collapsed ? 'justify-center px-0' : 'justify-end'
+            )}
+          >
+            {collapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <>
+                <span className="text-xs mr-2">Collapse</span>
+                <ChevronLeft className="h-4 w-4" />
+              </>
+            )}
+          </Button>
+        </div>
+
+        {/* Navigation */}
+        <ScrollArea className="flex-1 px-3">
+          <nav className="space-y-1">
+            {navItems.map((item) => {
+              const isActive = pathname === item.href ||
+                (item.href !== '/admin' && item.href !== '/clipper' && item.href !== '/client' && pathname.startsWith(item.href));
+
+              const linkContent = (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    'flex items-center rounded-lg px-3 py-2 text-sm transition-colors',
+                    collapsed ? 'justify-center' : 'gap-3',
+                    isActive
+                      ? 'bg-sidebar-primary text-sidebar-primary-foreground'
+                      : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
+                  )}
+                >
+                  <item.icon className="h-4 w-4 flex-shrink-0" />
+                  {!collapsed && <span>{item.title}</span>}
+                </Link>
+              );
+
+              if (collapsed) {
+                return (
+                  <Tooltip key={item.href}>
+                    <TooltipTrigger asChild>
+                      {linkContent}
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="font-medium">
+                      {item.title}
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              }
+
+              return linkContent;
+            })}
+          </nav>
+        </ScrollArea>
+
+        {/* User Section */}
+        <div className="border-t border-sidebar-border p-4">
+          {collapsed ? (
+            <div className="flex flex-col items-center gap-3">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Avatar className="h-8 w-8 cursor-pointer">
+                    <AvatarImage src={session?.user?.image || undefined} />
+                    <AvatarFallback className="bg-primary text-primary-foreground">
+                      {session?.user?.name?.charAt(0).toUpperCase() || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p className="font-medium">{session?.user?.name || 'User'}</p>
+                  <p className="text-xs text-muted-foreground">{session?.user?.email}</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                    onClick={handleSignOut}
+                  >
+                    <LogOut className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Sign out</TooltipContent>
+              </Tooltip>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-3 mb-3">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={session?.user?.image || undefined} />
+                  <AvatarFallback className="bg-primary text-primary-foreground">
+                    {session?.user?.name?.charAt(0).toUpperCase() || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate text-sidebar-foreground">
+                    {session?.user?.name || 'User'}
+                  </p>
+                  <p className="text-xs text-sidebar-foreground/60 truncate">
+                    {session?.user?.email}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                className="w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                onClick={handleSignOut}
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign out
+              </Button>
+            </>
+          )}
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }
