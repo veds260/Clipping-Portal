@@ -5,6 +5,10 @@ import { db } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
+import { ensureAdminUser } from '@/lib/init-admin';
+
+// Initialize admin user from env vars on startup
+ensureAdminUser();
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: DrizzleAdapter(db),

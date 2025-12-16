@@ -7,9 +7,9 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { BrandIcon } from '@/components/shared/brand-logo';
+import { BrandLogo } from '@/components/shared/brand-logo';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -89,16 +89,11 @@ export default function RegisterPage() {
     <Card className="w-full max-w-md">
       <CardHeader className="space-y-4">
         <div className="flex justify-center">
-          <BrandIcon className="h-14 w-14 text-primary" />
+          <BrandLogo className="h-10 w-auto text-black" />
         </div>
-        <div className="space-y-1 text-center">
-          <CardTitle className="text-2xl font-black tracking-tight">
-            JOIN COMPOUND
-          </CardTitle>
-          <CardDescription>
-            Create an account to start clipping
-          </CardDescription>
-        </div>
+        <CardDescription className="text-center">
+          Create an account to start clipping
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {error && (
