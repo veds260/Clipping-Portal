@@ -2,7 +2,8 @@ import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
 
-export const dynamic = 'force-dynamic';
+// Cache for 60 seconds (settings change infrequently)
+export const revalidate = 60;
 
 import { platformSettings } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';

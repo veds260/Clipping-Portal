@@ -8,7 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
+import { AlertTriangle } from 'lucide-react';
 import { updatePayoutSettings, updateContentSettings, updateTierSettings } from '@/lib/actions/settings';
+import { deleteEntireDatabase } from '@/lib/actions/admin-users';
 
 interface SettingsFormProps {
   settings: {
@@ -43,6 +45,7 @@ export function SettingsForm({ settings }: SettingsFormProps) {
   const [contentData, setContentData] = useState(settings.content);
   const [tierData, setTierData] = useState(settings.tier);
   const [isLoading, setIsLoading] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
 
   const handlePayoutSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,12 +86,29 @@ export function SettingsForm({ settings }: SettingsFormProps) {
     }
   };
 
+  const handleDeleteDatabase = async () => {
+    if (deleteConfirmation !== 'DELETE EVERYTHING') return;
+
+    setIsLoading(true);
+    const result = await deleteEntireDatabase(deleteConfirmation);
+    setIsLoading(false);
+
+    if (result.error) {
+      toast.error(result.error);
+    } else {
+      toast.success('Database cleared successfully');
+      setDeleteConfirmation('');
+      window.location.reload();
+    }
+  };
+
   return (
     <Tabs defaultValue="payout" className="space-y-4">
       <TabsList>
         <TabsTrigger value="payout">Payout Settings</TabsTrigger>
         <TabsTrigger value="content">Content Requirements</TabsTrigger>
         <TabsTrigger value="tier">Tier Thresholds</TabsTrigger>
+        <TabsTrigger value="danger" className="text-red-600">Danger Zone</TabsTrigger>
       </TabsList>
 
       <TabsContent value="payout">
@@ -407,6 +427,60 @@ export function SettingsForm({ settings }: SettingsFormProps) {
                 {isLoading ? 'Saving...' : 'Save Tier Settings'}
               </Button>
             </form>
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="danger">
+        <Card className="border-red-200">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="h-5 w-5" />
+              Danger Zone
+            </CardTitle>
+            <CardDescription>
+              Irreversible and destructive actions. Proceed with extreme caution.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="border border-red-200 rounded-lg p-6 bg-red-50">
+              <h3 className="text-lg font-medium text-red-800 mb-2">Delete Entire Database</h3>
+              <p className="text-sm text-red-700 mb-4">
+                This will permanently delete ALL data from the platform including:
+              </p>
+              <ul className="text-sm text-red-700 list-disc list-inside mb-4">
+                <li>All clippers and their profiles</li>
+                <li>All clients and their campaigns</li>
+                <li>All clips and view data</li>
+                <li>All payout records</li>
+                <li>All activity logs</li>
+              </ul>
+              <p className="text-sm text-red-800 font-medium mb-4">
+                Only the admin account will be preserved. This action cannot be undone.
+              </p>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="delete-db-confirm" className="text-red-800">
+                    Type DELETE EVERYTHING to confirm
+                  </Label>
+                  <Input
+                    id="delete-db-confirm"
+                    value={deleteConfirmation}
+                    onChange={(e) => setDeleteConfirmation(e.target.value)}
+                    placeholder="DELETE EVERYTHING"
+                    className="mt-2 border-red-300"
+                  />
+                </div>
+                <Button
+                  variant="destructive"
+                  onClick={handleDeleteDatabase}
+                  disabled={isLoading || deleteConfirmation !== 'DELETE EVERYTHING'}
+                  className="w-full"
+                >
+                  {isLoading ? 'Deleting...' : 'Delete Entire Database'}
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </TabsContent>

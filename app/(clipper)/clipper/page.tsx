@@ -2,7 +2,8 @@ import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
 
-export const dynamic = 'force-dynamic';
+// Cache for 30 seconds
+export const revalidate = 30;
 import { clipperProfiles, clips, clipperPayouts, platformSettings } from '@/lib/db/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';

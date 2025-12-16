@@ -2,7 +2,8 @@ import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
 
-export const dynamic = 'force-dynamic';
+// Cache for 30 seconds
+export const revalidate = 30;
 
 import { clipperProfiles, clips } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';

@@ -8,7 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Film, Eye, DollarSign, Megaphone } from 'lucide-react';
 import { format } from 'date-fns';
 
-export const dynamic = 'force-dynamic';
+// Cache for 30 seconds
+export const revalidate = 30;
 
 async function getClientData(userId: string) {
   // Get client record linked to this user

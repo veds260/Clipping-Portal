@@ -8,7 +8,8 @@ import { Plus, Megaphone, Eye, Film, DollarSign } from 'lucide-react';
 import Link from 'next/link';
 import { CampaignsTable } from './campaigns-table';
 
-export const dynamic = 'force-dynamic';
+// Cache for 30 seconds
+export const revalidate = 30;
 
 async function getCampaigns() {
   const campaignsData = await db

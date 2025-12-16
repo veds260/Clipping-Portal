@@ -2,78 +2,47 @@ import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
 
-export const dynamic = 'force-dynamic';
+// Cache for 30 seconds - allows fast page loads while still updating frequently
+export const revalidate = 30;
 
 import { clips, clipperProfiles, clipperPayouts } from '@/lib/db/schema';
-import { eq, sql, and, gte } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Film, Users, DollarSign, Eye, Clock, CheckCircle } from 'lucide-react';
+import { Film, Users, DollarSign, Eye, Clock } from 'lucide-react';
 
 async function getStats() {
   const now = new Date();
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-  // Total clips
-  const totalClipsResult = await db.select({ count: sql<number>`count(*)` }).from(clips);
-  const totalClips = totalClipsResult[0]?.count || 0;
+  // Combine all clip stats into single query
+  const [clipStats, clipperStats, payoutStats] = await Promise.all([
+    db.select({
+      totalClips: sql<number>`count(*)`,
+      clipsThisWeek: sql<number>`count(*) filter (where ${clips.createdAt} >= ${weekAgo})`,
+      pendingClips: sql<number>`count(*) filter (where ${clips.status} = 'pending')`,
+      totalViews: sql<number>`coalesce(sum(${clips.views}), 0)`,
+    }).from(clips),
 
-  // Clips this week
-  const weekClipsResult = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(clips)
-    .where(gte(clips.createdAt, weekAgo));
-  const clipsThisWeek = weekClipsResult[0]?.count || 0;
+    db.select({
+      totalClippers: sql<number>`count(*)`,
+      activeClippers: sql<number>`count(*) filter (where ${clipperProfiles.status} = 'active')`,
+    }).from(clipperProfiles),
 
-  // Pending clips
-  const pendingClipsResult = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(clips)
-    .where(eq(clips.status, 'pending'));
-  const pendingClips = pendingClipsResult[0]?.count || 0;
-
-  // Total views
-  const totalViewsResult = await db
-    .select({ sum: sql<number>`coalesce(sum(views), 0)` })
-    .from(clips);
-  const totalViews = totalViewsResult[0]?.sum || 0;
-
-  // Active clippers
-  const activeClippersResult = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(clipperProfiles)
-    .where(eq(clipperProfiles.status, 'active'));
-  const activeClippers = activeClippersResult[0]?.count || 0;
-
-  // Total clippers
-  const totalClippersResult = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(clipperProfiles);
-  const totalClippers = totalClippersResult[0]?.count || 0;
-
-  // Pending payouts
-  const pendingPayoutsResult = await db
-    .select({ sum: sql<number>`coalesce(sum(amount), 0)` })
-    .from(clipperPayouts)
-    .where(eq(clipperPayouts.status, 'pending'));
-  const pendingPayouts = pendingPayoutsResult[0]?.sum || 0;
-
-  // Total paid
-  const totalPaidResult = await db
-    .select({ sum: sql<number>`coalesce(sum(amount), 0)` })
-    .from(clipperPayouts)
-    .where(eq(clipperPayouts.status, 'paid'));
-  const totalPaid = totalPaidResult[0]?.sum || 0;
+    db.select({
+      pendingPayouts: sql<number>`coalesce(sum(${clipperPayouts.amount}) filter (where ${clipperPayouts.status} = 'pending'), 0)`,
+      totalPaid: sql<number>`coalesce(sum(${clipperPayouts.amount}) filter (where ${clipperPayouts.status} = 'paid'), 0)`,
+    }).from(clipperPayouts),
+  ]);
 
   return {
-    totalClips,
-    clipsThisWeek,
-    pendingClips,
-    totalViews,
-    activeClippers,
-    totalClippers,
-    pendingPayouts,
-    totalPaid,
+    totalClips: clipStats[0]?.totalClips || 0,
+    clipsThisWeek: clipStats[0]?.clipsThisWeek || 0,
+    pendingClips: clipStats[0]?.pendingClips || 0,
+    totalViews: clipStats[0]?.totalViews || 0,
+    activeClippers: clipperStats[0]?.activeClippers || 0,
+    totalClippers: clipperStats[0]?.totalClippers || 0,
+    pendingPayouts: payoutStats[0]?.pendingPayouts || 0,
+    totalPaid: payoutStats[0]?.totalPaid || 0,
   };
 }
 

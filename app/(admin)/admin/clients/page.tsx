@@ -2,7 +2,8 @@ import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
 
-export const dynamic = 'force-dynamic';
+// Cache for 30 seconds
+export const revalidate = 30;
 
 import { clients, clips } from '@/lib/db/schema';
 import { desc, eq, sql } from 'drizzle-orm';
@@ -12,28 +13,40 @@ import Link from 'next/link';
 import { Plus } from 'lucide-react';
 
 async function getClients() {
+  // Fetch clients with user data
   const allClients = await db.query.clients.findMany({
     orderBy: [desc(clients.createdAt)],
+    with: {
+      user: {
+        columns: {
+          id: true,
+          email: true,
+        },
+      },
+    },
   });
 
-  // Get clip counts for each client
-  const clientsWithStats = await Promise.all(
-    allClients.map(async (client) => {
-      const clipStats = await db
-        .select({
-          count: sql<number>`count(*)`,
-          totalViews: sql<number>`coalesce(sum(views), 0)`,
-        })
-        .from(clips)
-        .where(eq(clips.clientId, client.id));
-
-      return {
-        ...client,
-        clipsCount: clipStats[0]?.count || 0,
-        totalViews: clipStats[0]?.totalViews || 0,
-      };
+  // Get all clip stats in single query grouped by clientId
+  const allClipStats = await db
+    .select({
+      clientId: clips.clientId,
+      count: sql<number>`count(*)`,
+      totalViews: sql<number>`coalesce(sum(${clips.views}), 0)`,
     })
+    .from(clips)
+    .groupBy(clips.clientId);
+
+  // Create a map for O(1) lookup
+  const statsMap = new Map(
+    allClipStats.map(stat => [stat.clientId, { count: stat.count, totalViews: stat.totalViews }])
   );
+
+  // Merge stats with clients
+  const clientsWithStats = allClients.map(client => ({
+    ...client,
+    clipsCount: statsMap.get(client.id)?.count || 0,
+    totalViews: statsMap.get(client.id)?.totalViews || 0,
+  }));
 
   return clientsWithStats;
 }
