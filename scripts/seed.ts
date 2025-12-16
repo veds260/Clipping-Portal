@@ -9,21 +9,23 @@ async function seed() {
 
   console.log('Starting seed...');
 
-  // Create admin user
-  const adminPassword = await bcrypt.hash('admin123', 12);
+  // Create admin user from environment variables or use defaults
+  const adminEmail = process.env.ADMIN_EMAIL || 'admin@compound.com';
+  const adminPasswordRaw = process.env.ADMIN_PASSWORD || 'admin123';
+  const adminPassword = await bcrypt.hash(adminPasswordRaw, 12);
 
   const existingAdmin = await db.query.users.findFirst({
-    where: (users, { eq }) => eq(users.email, 'admin@compound.com'),
+    where: (users, { eq }) => eq(users.email, adminEmail),
   });
 
   if (!existingAdmin) {
     await db.insert(users).values({
-      email: 'admin@compound.com',
+      email: adminEmail,
       passwordHash: adminPassword,
       name: 'Admin',
       role: 'admin',
     });
-    console.log('Created admin user: admin@compound.com / admin123');
+    console.log(`Created admin user: ${adminEmail}`);
   } else {
     console.log('Admin user already exists');
   }

@@ -89,7 +89,7 @@ export function Sidebar({ userRole, userName, variant }: SidebarProps) {
     <div className="flex h-full w-64 flex-col border-r bg-sidebar text-sidebar-foreground">
       <div className="p-6">
         <Link href={getHomeUrl()} className="block">
-          <BrandLogo className="text-xl" />
+          <BrandLogo className="h-8 w-auto text-white" />
           <p className="text-xs text-sidebar-foreground/60 mt-1">
             {getPortalName()}
           </p>
