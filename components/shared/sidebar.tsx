@@ -145,24 +145,28 @@ export function Sidebar({ userRole, userName, variant }: SidebarProps) {
 
         {/* Collapse Toggle Button */}
         <div className={cn('px-3 mb-2', collapsed && 'px-2')}>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggleCollapsed}
-            className={cn(
-              'w-full text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent',
-              collapsed ? 'justify-center px-0' : 'justify-end'
-            )}
-          >
-            {collapsed ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
-              <>
-                <span className="text-xs mr-2">Collapse</span>
-                <ChevronLeft className="h-4 w-4" />
-              </>
-            )}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleCollapsed}
+                className={cn(
+                  'w-full text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent',
+                  collapsed ? 'justify-center px-0' : 'justify-end'
+                )}
+              >
+                {collapsed ? (
+                  <ChevronRight className="h-4 w-4" />
+                ) : (
+                  <ChevronLeft className="h-4 w-4" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side={collapsed ? 'right' : 'bottom'}>
+              {collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            </TooltipContent>
+          </Tooltip>
         </div>
 
         {/* Navigation */}
