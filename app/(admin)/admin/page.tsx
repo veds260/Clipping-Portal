@@ -13,12 +13,14 @@ import { Film, Users, DollarSign, Eye, Clock } from 'lucide-react';
 async function getStats() {
   const now = new Date();
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  // Convert to ISO string for postgres.js driver compatibility
+  const weekAgoISO = weekAgo.toISOString();
 
   // Combine all clip stats into single query
   const [clipStats, clipperStats, payoutStats] = await Promise.all([
     db.select({
       totalClips: sql<number>`count(*)`,
-      clipsThisWeek: sql<number>`count(*) filter (where ${clips.createdAt} >= ${weekAgo})`,
+      clipsThisWeek: sql<number>`count(*) filter (where ${clips.createdAt} >= ${weekAgoISO}::timestamp)`,
       pendingClips: sql<number>`count(*) filter (where ${clips.status} = 'pending')`,
       totalViews: sql<number>`coalesce(sum(${clips.views}), 0)`,
     }).from(clips),

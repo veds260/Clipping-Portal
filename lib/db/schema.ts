@@ -25,7 +25,10 @@ export const users = pgTable('users', {
   twitterId: varchar('twitter_id', { length: 100 }),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
-});
+}, (table) => [
+  index('idx_users_role').on(table.role),
+  index('idx_users_created_at').on(table.createdAt),
+]);
 
 // Clipper profiles
 export const clipperProfiles = pgTable('clipper_profiles', {
@@ -43,7 +46,12 @@ export const clipperProfiles = pgTable('clipper_profiles', {
   onboardedAt: timestamp('onboarded_at'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
-});
+}, (table) => [
+  index('idx_clipper_profiles_user').on(table.userId),
+  index('idx_clipper_profiles_status').on(table.status),
+  index('idx_clipper_profiles_tier').on(table.tier),
+  index('idx_clipper_profiles_created_at').on(table.createdAt),
+]);
 
 // Clients
 export const clients = pgTable('clients', {
@@ -60,7 +68,11 @@ export const clients = pgTable('clients', {
   isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
-});
+}, (table) => [
+  index('idx_clients_user').on(table.userId),
+  index('idx_clients_is_active').on(table.isActive),
+  index('idx_clients_created_at').on(table.createdAt),
+]);
 
 // Campaigns
 export const campaigns = pgTable('campaigns', {
@@ -78,7 +90,11 @@ export const campaigns = pgTable('campaigns', {
   tierRequirement: clipperTierEnum('tier_requirement'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
-});
+}, (table) => [
+  index('idx_campaigns_client').on(table.clientId),
+  index('idx_campaigns_status').on(table.status),
+  index('idx_campaigns_created_at').on(table.createdAt),
+]);
 
 // Distribution Channels (owned by Compound)
 export const distributionChannels = pgTable('distribution_channels', {
@@ -122,7 +138,10 @@ export const distributionChannels = pgTable('distribution_channels', {
 
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
-});
+}, (table) => [
+  index('idx_channels_status').on(table.status),
+  index('idx_channels_niche').on(table.niche),
+]);
 
 // Clips
 export const clips = pgTable('clips', {
@@ -177,9 +196,15 @@ export const clips = pgTable('clips', {
 }, (table) => [
   index('idx_clips_clipper').on(table.clipperId),
   index('idx_clips_campaign').on(table.campaignId),
+  index('idx_clips_client').on(table.clientId),
+  index('idx_clips_channel').on(table.channelId),
   index('idx_clips_status').on(table.status),
   index('idx_clips_posted_at').on(table.postedAt),
+  index('idx_clips_created_at').on(table.createdAt),
   index('idx_clips_platform_url').on(table.platformPostUrl),
+  // Composite indexes for common query patterns
+  index('idx_clips_status_created').on(table.status, table.createdAt),
+  index('idx_clips_clipper_status').on(table.clipperId, table.status),
 ]);
 
 // Payout batches
@@ -211,6 +236,8 @@ export const clipperPayouts = pgTable('clipper_payouts', {
   createdAt: timestamp('created_at').defaultNow(),
 }, (table) => [
   index('idx_clipper_payouts_batch').on(table.batchId),
+  index('idx_clipper_payouts_clipper').on(table.clipperId),
+  index('idx_clipper_payouts_status').on(table.status),
 ]);
 
 // Platform settings
