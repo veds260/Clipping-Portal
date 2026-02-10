@@ -1,10 +1,15 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, Space_Mono } from "next/font/google";
+import { Inter, Space_Grotesk, Space_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 
-const spaceGrotesk = Space_Grotesk({
+const inter = Inter({
   variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
   subsets: ["latin"],
 });
 
@@ -15,7 +20,7 @@ const spaceMono = Space_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Web3Clipper",
+  title: "Web3 Clipping",
   description: "Campaign management and clipper performance tracking",
 };
 
@@ -27,7 +32,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body
-        className={`${spaceGrotesk.variable} ${spaceMono.variable} antialiased`}
+        className={`${inter.variable} ${spaceGrotesk.variable} ${spaceMono.variable} antialiased`}
       >
         <Providers>{children}</Providers>
       </body>

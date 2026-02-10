@@ -128,7 +128,7 @@ export default async function ClipperDashboard() {
     return (
       <div className="p-8">
         <div className="text-center py-16">
-          <h1 className="text-2xl font-bold mb-4">Welcome to Web3Clipper!</h1>
+          <h1 className="text-2xl font-bold mb-4">Welcome to Web3 Clipping!</h1>
           <p className="text-muted-foreground mb-8">
             Your clipper profile is being set up. Please wait for admin approval.
           </p>
@@ -142,7 +142,7 @@ export default async function ClipperDashboard() {
   return (
     <div className="p-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold">Welcome to Web3Clipper!</h1>
+        <h1 className="text-3xl font-bold">Welcome to Web3 Clipping!</h1>
         <p className="text-muted-foreground">
           Hey {session.user.name?.split(' ')[0] || 'Clipper'}, here&apos;s your clipping overview
         </p>

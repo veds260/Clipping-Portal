@@ -97,8 +97,8 @@ export function Sidebar({ userRole, userName, variant }: SidebarProps) {
   };
 
   const getPortalName = () => {
-    if (role === 'admin') return 'W3C Admin';
-    return 'W3C Clipper';
+    if (role === 'admin') return 'Admin Portal';
+    return 'Clipper Portal';
   };
 
   // Prevent hydration mismatch by rendering expanded state initially

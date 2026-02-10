@@ -10,7 +10,7 @@ async function seed() {
   console.log('Starting seed...');
 
   // Create admin user
-  const adminEmail = process.env.ADMIN_EMAIL || 'admin@web3clipper.com';
+  const adminEmail = process.env.ADMIN_EMAIL || 'admin@web3clipping.com';
   const adminPasswordRaw = process.env.ADMIN_PASSWORD || 'admin123';
   const adminPassword = await bcrypt.hash(adminPasswordRaw, 12);
 

@@ -95,7 +95,7 @@ export default function RegisterPage() {
       <CardHeader className="space-y-4">
         <div className="flex justify-center">
           <span className="text-2xl font-bold tracking-tight">
-            <span className="text-[#4ADE80]">Web3</span>Clipper
+            <span className="text-primary">Web3</span> Clipping
           </span>
         </div>
         <CardDescription className="text-center">

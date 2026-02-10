@@ -5,18 +5,11 @@ import { db } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
-import { ensureAdminUser } from '@/lib/init-admin';
-
-// Initialize admin user from env vars on startup
-ensureAdminUser();
+import { authConfig } from '@/lib/auth.config';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  ...authConfig,
   adapter: DrizzleAdapter(db),
-  session: { strategy: 'jwt' },
-  pages: {
-    signIn: '/login',
-    error: '/login',
-  },
   providers: [
     Credentials({
       name: 'credentials',
@@ -56,22 +49,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
     }),
   ],
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id;
-        token.role = (user as { role?: string }).role || 'clipper';
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      if (token) {
-        session.user.id = token.id as string;
-        session.user.role = token.role as string;
-      }
-      return session;
-    },
-  },
 });
 
 // Extend the types
