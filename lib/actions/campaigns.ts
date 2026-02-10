@@ -8,20 +8,35 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 const campaignSchema = z.object({
-  clientId: z.string().min(1, 'Client is required'),
   name: z.string().min(1, 'Name is required'),
   description: z.string().optional(),
-  sourceContentUrl: z.string().optional(),
-  sourceContentType: z.enum(['podcast', 'interview', 'livestream', 'other']).optional(),
-  startDate: z.date().optional(),
-  endDate: z.date().optional(),
-  budgetCap: z.number().optional(),
-  payRatePer1k: z.number().optional(),
+  brandName: z.string().optional(),
+  brandLogoUrl: z.string().optional(),
+  startDate: z.coerce.date().optional(),
+  endDate: z.coerce.date().optional(),
+  budgetCap: z.number().min(0).optional(),
   status: z.enum(['draft', 'active', 'paused', 'completed']).optional(),
-  tierRequirement: z.enum(['entry', 'approved', 'core']).optional(),
+  contentGuidelines: z.string().optional(),
+
+  // Tier rates
+  tier1CpmRate: z.number().min(0).default(0),
+  tier2CpmRate: z.number().min(0).default(0),
+  tier3FixedRate: z.number().min(0).default(0),
+
+  // Anti-gaming caps
+  tier1MaxPerClip: z.number().min(0).optional(),
+  tier2MaxPerClip: z.number().min(0).optional(),
+  tier1MaxPerCampaign: z.number().min(0).optional(),
+  tier2MaxPerCampaign: z.number().min(0).optional(),
+  tier3MaxPerCampaign: z.number().min(0).optional(),
+
+  // Tag patterns
+  requiredTags: z.array(z.string()).optional(),
 });
 
-export async function createCampaign(data: z.infer<typeof campaignSchema>) {
+export type CampaignFormData = z.infer<typeof campaignSchema>;
+
+export async function createCampaign(data: CampaignFormData) {
   const session = await auth();
   if (!session || session.user.role !== 'admin') {
     return { error: 'Unauthorized' };
@@ -31,17 +46,24 @@ export async function createCampaign(data: z.infer<typeof campaignSchema>) {
     const validated = campaignSchema.parse(data);
 
     const [campaign] = await db.insert(campaigns).values({
-      clientId: validated.clientId,
       name: validated.name,
       description: validated.description,
-      sourceContentUrl: validated.sourceContentUrl,
-      sourceContentType: validated.sourceContentType,
+      brandName: validated.brandName,
+      brandLogoUrl: validated.brandLogoUrl,
       startDate: validated.startDate,
       endDate: validated.endDate,
       budgetCap: validated.budgetCap?.toString(),
-      payRatePer1k: validated.payRatePer1k?.toString(),
       status: validated.status || 'draft',
-      tierRequirement: validated.tierRequirement,
+      contentGuidelines: validated.contentGuidelines,
+      tier1CpmRate: validated.tier1CpmRate.toString(),
+      tier2CpmRate: validated.tier2CpmRate.toString(),
+      tier3FixedRate: validated.tier3FixedRate.toString(),
+      tier1MaxPerClip: validated.tier1MaxPerClip?.toString(),
+      tier2MaxPerClip: validated.tier2MaxPerClip?.toString(),
+      tier1MaxPerCampaign: validated.tier1MaxPerCampaign?.toString(),
+      tier2MaxPerCampaign: validated.tier2MaxPerCampaign?.toString(),
+      tier3MaxPerCampaign: validated.tier3MaxPerCampaign?.toString(),
+      requiredTags: validated.requiredTags || [],
     }).returning();
 
     revalidatePath('/admin/campaigns');
@@ -55,7 +77,7 @@ export async function createCampaign(data: z.infer<typeof campaignSchema>) {
   }
 }
 
-export async function updateCampaign(campaignId: string, data: z.infer<typeof campaignSchema>) {
+export async function updateCampaign(campaignId: string, data: CampaignFormData) {
   const session = await auth();
   if (!session || session.user.role !== 'admin') {
     return { error: 'Unauthorized' };
@@ -67,22 +89,30 @@ export async function updateCampaign(campaignId: string, data: z.infer<typeof ca
     await db
       .update(campaigns)
       .set({
-        clientId: validated.clientId,
         name: validated.name,
         description: validated.description,
-        sourceContentUrl: validated.sourceContentUrl,
-        sourceContentType: validated.sourceContentType,
+        brandName: validated.brandName,
+        brandLogoUrl: validated.brandLogoUrl,
         startDate: validated.startDate,
         endDate: validated.endDate,
         budgetCap: validated.budgetCap?.toString(),
-        payRatePer1k: validated.payRatePer1k?.toString(),
         status: validated.status,
-        tierRequirement: validated.tierRequirement,
+        contentGuidelines: validated.contentGuidelines,
+        tier1CpmRate: validated.tier1CpmRate.toString(),
+        tier2CpmRate: validated.tier2CpmRate.toString(),
+        tier3FixedRate: validated.tier3FixedRate.toString(),
+        tier1MaxPerClip: validated.tier1MaxPerClip?.toString(),
+        tier2MaxPerClip: validated.tier2MaxPerClip?.toString(),
+        tier1MaxPerCampaign: validated.tier1MaxPerCampaign?.toString(),
+        tier2MaxPerCampaign: validated.tier2MaxPerCampaign?.toString(),
+        tier3MaxPerCampaign: validated.tier3MaxPerCampaign?.toString(),
+        requiredTags: validated.requiredTags || [],
         updatedAt: new Date(),
       })
       .where(eq(campaigns.id, campaignId));
 
     revalidatePath('/admin/campaigns');
+    revalidatePath(`/admin/campaigns/${campaignId}`);
     return { success: true };
   } catch (error) {
     console.error('Error updating campaign:', error);

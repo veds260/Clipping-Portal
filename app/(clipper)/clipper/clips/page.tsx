@@ -19,9 +19,27 @@ async function getClipperClips(userId: string) {
   const clipperClips = await db.query.clips.findMany({
     where: eq(clips.clipperId, profile.id),
     orderBy: [desc(clips.createdAt)],
+    with: {
+      campaign: true,
+    },
   });
 
-  return clipperClips;
+  return clipperClips.map((clip) => ({
+    id: clip.id,
+    platform: clip.platform,
+    platformPostUrl: clip.platformPostUrl,
+    campaignName: clip.campaign?.name || null,
+    views: clip.views,
+    likes: clip.likes,
+    retweets: clip.retweets,
+    comments: clip.comments,
+    status: clip.status,
+    rejectionReason: clip.rejectionReason,
+    payoutAmount: clip.payoutAmount,
+    isDuplicate: clip.isDuplicate,
+    tagCompliance: clip.tagCompliance as { compliant: boolean; found: string[]; missing: string[] } | null,
+    createdAt: clip.createdAt,
+  }));
 }
 
 export default async function ClipperClipsPage() {
@@ -38,7 +56,7 @@ export default async function ClipperClipsPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold">My Clips</h1>
         <p className="text-muted-foreground">
-          View and manage your submitted clips
+          View and track your submitted clips
         </p>
       </div>
 

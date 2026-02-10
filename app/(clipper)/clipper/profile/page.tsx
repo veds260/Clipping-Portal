@@ -62,9 +62,9 @@ export default function ProfilePage() {
   };
 
   const tierColors: Record<string, string> = {
-    entry: 'bg-gray-100 text-gray-800',
-    approved: 'bg-blue-100 text-blue-800',
-    core: 'bg-purple-100 text-purple-800',
+    tier1: 'bg-emerald-900/30 text-emerald-400 border-emerald-700',
+    tier2: 'bg-blue-900/30 text-blue-400 border-blue-700',
+    tier3: 'bg-purple-900/30 text-purple-400 border-purple-700',
   };
 
   const statusColors: Record<string, string> = {
@@ -132,8 +132,8 @@ export default function ProfilePage() {
             <div className="grid gap-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Tier</span>
-                <Badge className={tierColors[profileData?.tier || 'entry']} variant="outline">
-                  {profileData?.tier || 'entry'}
+                <Badge className={tierColors[profileData?.tier || 'tier1']} variant="outline">
+                  {profileData?.tier || 'tier1'}
                 </Badge>
               </div>
               <div className="flex items-center justify-between">

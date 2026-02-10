@@ -2,56 +2,9 @@
 
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { payoutBatches, clipperPayouts, clips, clipperProfiles, platformSettings, campaigns } from '@/lib/db/schema';
-import { eq, and, gte, lte, sql, inArray } from 'drizzle-orm';
+import { payoutBatches, clipperPayouts, clips, clipperProfiles, campaigns, campaignClipperAssignments } from '@/lib/db/schema';
+import { eq, and, gte, lte, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
-
-interface PayoutSettingsValue {
-  minimum_views_for_payout: number;
-  bonus_threshold_views: number;
-  bonus_multiplier: number;
-}
-
-interface TierSettingsValue {
-  entry_pay_rate: number;
-  approved_pay_rate: number;
-  core_pay_rate: number;
-}
-
-async function getPayoutSettings(): Promise<PayoutSettingsValue> {
-  const settings = await db.query.platformSettings.findFirst({
-    where: eq(platformSettings.key, 'payout_settings'),
-  });
-
-  return (settings?.value as PayoutSettingsValue) || {
-    minimum_views_for_payout: 1000,
-    bonus_threshold_views: 100000,
-    bonus_multiplier: 1.5,
-  };
-}
-
-async function getTierSettings(): Promise<TierSettingsValue> {
-  const settings = await db.query.platformSettings.findFirst({
-    where: eq(platformSettings.key, 'tier_settings'),
-  });
-
-  return (settings?.value as TierSettingsValue) || {
-    entry_pay_rate: 1.0,
-    approved_pay_rate: 1.5,
-    core_pay_rate: 2.0,
-  };
-}
-
-function getPayRateForTier(tier: string | null, tierSettings: TierSettingsValue): number {
-  switch (tier) {
-    case 'core':
-      return tierSettings.core_pay_rate || 2.0;
-    case 'approved':
-      return tierSettings.approved_pay_rate || 1.5;
-    default:
-      return tierSettings.entry_pay_rate || 1.0;
-  }
-}
 
 export async function generatePayoutBatch(periodStart: Date, periodEnd: Date) {
   const session = await auth();
@@ -60,9 +13,6 @@ export async function generatePayoutBatch(periodStart: Date, periodEnd: Date) {
   }
 
   try {
-    const payoutSettings = await getPayoutSettings();
-    const tierSettings = await getTierSettings();
-
     // Get all approved clips in the period that haven't been paid
     const eligibleClips = await db.query.clips.findMany({
       where: and(
@@ -80,15 +30,6 @@ export async function generatePayoutBatch(periodStart: Date, periodEnd: Date) {
       return { error: 'No eligible clips found for this period' };
     }
 
-    // Group clips by clipper
-    const clipsByClipper = new Map<string, typeof eligibleClips>();
-    for (const clip of eligibleClips) {
-      if (!clip.clipperId) continue;
-      const existing = clipsByClipper.get(clip.clipperId) || [];
-      existing.push(clip);
-      clipsByClipper.set(clip.clipperId, existing);
-    }
-
     // Create payout batch
     const [batch] = await db.insert(payoutBatches).values({
       periodStart,
@@ -99,65 +40,128 @@ export async function generatePayoutBatch(periodStart: Date, periodEnd: Date) {
     let totalAmount = 0;
     let totalClips = 0;
 
-    // Create individual clipper payouts
-    for (const [clipperId, clipperClips] of clipsByClipper) {
+    // Group clips by clipper + campaign for per-campaign cap tracking
+    const clipsByClipperCampaign = new Map<string, typeof eligibleClips>();
+    for (const clip of eligibleClips) {
+      if (!clip.clipperId || !clip.campaignId) continue;
+      const key = `${clip.clipperId}:${clip.campaignId}`;
+      const existing = clipsByClipperCampaign.get(key) || [];
+      existing.push(clip);
+      clipsByClipperCampaign.set(key, existing);
+    }
+
+    // Process each clipper-campaign group
+    for (const [key, groupClips] of clipsByClipperCampaign) {
+      const [clipperId, campaignId] = key.split(':');
+
+      // Get the clipper's tier for this campaign
+      const assignment = await db.query.campaignClipperAssignments.findFirst({
+        where: and(
+          eq(campaignClipperAssignments.campaignId, campaignId),
+          eq(campaignClipperAssignments.clipperId, clipperId),
+        ),
+      });
+
+      if (!assignment) continue;
+
+      const campaign = groupClips[0]?.campaign;
+      if (!campaign) continue;
+
+      const tier = assignment.assignedTier;
+      let campaignEarnings = parseFloat(assignment.totalEarnedInCampaign || '0');
+
+      // Get per-campaign cap for this tier
+      let maxPerCampaign = Infinity;
+      if (tier === 'tier1' && campaign.tier1MaxPerCampaign) {
+        maxPerCampaign = parseFloat(campaign.tier1MaxPerCampaign);
+      } else if (tier === 'tier2' && campaign.tier2MaxPerCampaign) {
+        maxPerCampaign = parseFloat(campaign.tier2MaxPerCampaign);
+      } else if (tier === 'tier3' && campaign.tier3MaxPerCampaign) {
+        maxPerCampaign = parseFloat(campaign.tier3MaxPerCampaign);
+      }
+
+      // Get per-clip cap for this tier
+      let maxPerClip = Infinity;
+      if (tier === 'tier1' && campaign.tier1MaxPerClip) {
+        maxPerClip = parseFloat(campaign.tier1MaxPerClip);
+      } else if (tier === 'tier2' && campaign.tier2MaxPerClip) {
+        maxPerClip = parseFloat(campaign.tier2MaxPerClip);
+      }
+
       let clipperTotal = 0;
-      let clipperBonus = 0;
       let clipperViews = 0;
+      let paidClipsCount = 0;
 
-      // Get clipper's tier to determine pay rate
-      const clipperTier = clipperClips[0]?.clipper?.tier || 'entry';
-      const payRate = getPayRateForTier(clipperTier, tierSettings);
-
-      for (const clip of clipperClips) {
+      for (const clip of groupClips) {
         const views = clip.views || 0;
         clipperViews += views;
 
-        // Skip if below minimum
-        if (views < payoutSettings.minimum_views_for_payout) continue;
-
-        // Determine pay rate: use campaign-specific rate if set (non-zero), otherwise tier rate
-        const campaignRate = clip.campaign?.payRatePer1k ? parseFloat(clip.campaign.payRatePer1k) : 0;
-        const effectiveRate = campaignRate > 0 ? campaignRate : payRate;
-
-        // Calculate base payout using the effective rate (only count complete thousands)
-        const paidThousands = Math.floor(views / 1000);
-        let payout = paidThousands * effectiveRate;
-
-        // Apply viral bonus
-        if (views >= payoutSettings.bonus_threshold_views) {
-          const bonus = payout * (payoutSettings.bonus_multiplier - 1);
-          clipperBonus += bonus;
-          payout += bonus;
+        // Calculate raw earnings based on tier
+        let rawEarnings = 0;
+        if (tier === 'tier3') {
+          // Fixed rate per clip
+          rawEarnings = parseFloat(campaign.tier3FixedRate || '0');
+        } else {
+          // CPM-based
+          const cpmRate = tier === 'tier1'
+            ? parseFloat(campaign.tier1CpmRate || '0')
+            : parseFloat(campaign.tier2CpmRate || '0');
+          rawEarnings = Math.floor(views / 1000) * cpmRate;
         }
 
-        clipperTotal += payout;
+        // Apply per-clip cap
+        let clipEarnings = Math.min(rawEarnings, maxPerClip);
 
-        // Update clip with payout info
-        await db
-          .update(clips)
-          .set({
-            payoutAmount: payout.toFixed(2),
-            payoutBatchId: batch.id,
-            status: 'paid',
-            updatedAt: new Date(),
-          })
-          .where(eq(clips.id, clip.id));
+        // Apply per-campaign cap
+        const remainingBudget = maxPerCampaign - campaignEarnings;
+        if (remainingBudget <= 0) {
+          clipEarnings = 0;
+        } else {
+          clipEarnings = Math.min(clipEarnings, remainingBudget);
+        }
+
+        if (clipEarnings > 0) {
+          campaignEarnings += clipEarnings;
+          clipperTotal += clipEarnings;
+          paidClipsCount++;
+
+          // Update clip with payout info
+          await db
+            .update(clips)
+            .set({
+              payoutAmount: clipEarnings.toFixed(2),
+              payoutBatchId: batch.id,
+              status: 'paid',
+              updatedAt: new Date(),
+            })
+            .where(eq(clips.id, clip.id));
+        }
       }
 
       if (clipperTotal > 0) {
+        // Create clipper payout record
         await db.insert(clipperPayouts).values({
           batchId: batch.id,
           clipperId,
+          campaignId,
           totalViews: clipperViews,
-          clipsCount: clipperClips.length,
+          clipsCount: paidClipsCount,
           amount: clipperTotal.toFixed(2),
-          bonusAmount: clipperBonus.toFixed(2),
+          bonusAmount: '0',
           status: 'pending',
         });
 
+        // Update campaign assignment's total earned
+        await db
+          .update(campaignClipperAssignments)
+          .set({ totalEarnedInCampaign: campaignEarnings.toFixed(2) })
+          .where(and(
+            eq(campaignClipperAssignments.campaignId, campaignId),
+            eq(campaignClipperAssignments.clipperId, clipperId),
+          ));
+
         totalAmount += clipperTotal;
-        totalClips += clipperClips.length;
+        totalClips += paidClipsCount;
       }
     }
 
@@ -227,7 +231,6 @@ export async function deleteBatch(batchId: string) {
   }
 
   try {
-    // Get the batch
     const batch = await db.query.payoutBatches.findFirst({
       where: eq(payoutBatches.id, batchId),
     });
@@ -236,12 +239,11 @@ export async function deleteBatch(batchId: string) {
       return { error: 'Batch not found' };
     }
 
-    // Only allow deleting draft batches
     if (batch.status !== 'draft') {
       return { error: 'Can only delete draft batches' };
     }
 
-    // Get all clips in this batch and reset their payout info
+    // Reset clips payout info
     const batchClips = await db.query.clips.findMany({
       where: eq(clips.payoutBatchId, batchId),
     });
@@ -252,16 +254,36 @@ export async function deleteBatch(batchId: string) {
         .set({
           payoutAmount: null,
           payoutBatchId: null,
-          status: 'approved', // Reset back to approved
+          status: 'approved',
           updatedAt: new Date(),
         })
         .where(eq(clips.id, clip.id));
     }
 
-    // Delete clipper payouts for this batch
-    await db.delete(clipperPayouts).where(eq(clipperPayouts.batchId, batchId));
+    // Reverse campaign earnings tracking
+    const batchPayouts = await db.query.clipperPayouts.findMany({
+      where: eq(clipperPayouts.batchId, batchId),
+    });
 
-    // Delete the batch
+    for (const payout of batchPayouts) {
+      if (payout.clipperId && payout.campaignId) {
+        const assignment = await db.query.campaignClipperAssignments.findFirst({
+          where: and(
+            eq(campaignClipperAssignments.campaignId, payout.campaignId),
+            eq(campaignClipperAssignments.clipperId, payout.clipperId),
+          ),
+        });
+        if (assignment) {
+          const newTotal = Math.max(0, parseFloat(assignment.totalEarnedInCampaign || '0') - parseFloat(payout.amount));
+          await db
+            .update(campaignClipperAssignments)
+            .set({ totalEarnedInCampaign: newTotal.toFixed(2) })
+            .where(eq(campaignClipperAssignments.id, assignment.id));
+        }
+      }
+    }
+
+    await db.delete(clipperPayouts).where(eq(clipperPayouts.batchId, batchId));
     await db.delete(payoutBatches).where(eq(payoutBatches.id, batchId));
 
     revalidatePath('/admin/payouts');
@@ -279,7 +301,6 @@ export async function markBatchAsPaid(batchId: string) {
   }
 
   try {
-    // Get all pending payouts in this batch
     const pendingPayouts = await db.query.clipperPayouts.findMany({
       where: and(
         eq(clipperPayouts.batchId, batchId),
@@ -287,7 +308,6 @@ export async function markBatchAsPaid(batchId: string) {
       ),
     });
 
-    // Mark all as paid
     for (const payout of pendingPayouts) {
       await db
         .update(clipperPayouts)
@@ -297,7 +317,6 @@ export async function markBatchAsPaid(batchId: string) {
         })
         .where(eq(clipperPayouts.id, payout.id));
 
-      // Update clipper's total earnings
       if (payout.clipperId) {
         await db
           .update(clipperProfiles)
@@ -309,7 +328,6 @@ export async function markBatchAsPaid(batchId: string) {
       }
     }
 
-    // Update batch status
     await db
       .update(payoutBatches)
       .set({
@@ -320,6 +338,7 @@ export async function markBatchAsPaid(batchId: string) {
       .where(eq(payoutBatches.id, batchId));
 
     revalidatePath('/admin/payouts');
+    revalidatePath('/clipper/earnings');
     return { success: true };
   } catch (error) {
     console.error('Error marking batch as paid:', error);

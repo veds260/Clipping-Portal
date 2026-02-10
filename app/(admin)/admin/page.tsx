@@ -5,19 +5,17 @@ import { db } from '@/lib/db';
 // Cache for 30 seconds - allows fast page loads while still updating frequently
 export const revalidate = 30;
 
-import { clips, clipperProfiles, clipperPayouts } from '@/lib/db/schema';
+import { clips, clipperProfiles, clipperPayouts, campaigns } from '@/lib/db/schema';
 import { sql } from 'drizzle-orm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Film, Users, DollarSign, Eye, Clock } from 'lucide-react';
+import { Film, Users, DollarSign, Eye, Clock, Megaphone } from 'lucide-react';
 
 async function getStats() {
   const now = new Date();
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  // Convert to ISO string for postgres.js driver compatibility
   const weekAgoISO = weekAgo.toISOString();
 
-  // Combine all clip stats into single query
-  const [clipStats, clipperStats, payoutStats] = await Promise.all([
+  const [clipStats, clipperStats, payoutStats, campaignStats] = await Promise.all([
     db.select({
       totalClips: sql<number>`count(*)`,
       clipsThisWeek: sql<number>`count(*) filter (where ${clips.createdAt} >= ${weekAgoISO}::timestamp)`,
@@ -34,6 +32,11 @@ async function getStats() {
       pendingPayouts: sql<number>`coalesce(sum(${clipperPayouts.amount}) filter (where ${clipperPayouts.status} = 'pending'), 0)`,
       totalPaid: sql<number>`coalesce(sum(${clipperPayouts.amount}) filter (where ${clipperPayouts.status} = 'paid'), 0)`,
     }).from(clipperPayouts),
+
+    db.select({
+      activeCampaigns: sql<number>`count(*) filter (where ${campaigns.status} = 'active')`,
+      totalCampaigns: sql<number>`count(*)`,
+    }).from(campaigns),
   ]);
 
   return {
@@ -45,6 +48,8 @@ async function getStats() {
     totalClippers: clipperStats[0]?.totalClippers || 0,
     pendingPayouts: payoutStats[0]?.pendingPayouts || 0,
     totalPaid: payoutStats[0]?.totalPaid || 0,
+    activeCampaigns: campaignStats[0]?.activeCampaigns || 0,
+    totalCampaigns: campaignStats[0]?.totalCampaigns || 0,
   };
 }
 
@@ -125,13 +130,13 @@ export default async function AdminDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Payouts</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Active Campaigns</CardTitle>
+            <Megaphone className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(stats.pendingPayouts)}</div>
+            <div className="text-2xl font-bold">{stats.activeCampaigns}</div>
             <p className="text-xs text-muted-foreground">
-              {formatCurrency(stats.totalPaid)} paid all time
+              of {stats.totalCampaigns} total
             </p>
           </CardContent>
         </Card>
@@ -185,6 +190,10 @@ export default async function AdminDashboard() {
                     ? (stats.totalClips / stats.totalClippers).toFixed(1)
                     : '0'}
                 </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Total paid all time</span>
+                <span className="font-bold">{formatCurrency(stats.totalPaid)}</span>
               </div>
             </div>
           </CardContent>

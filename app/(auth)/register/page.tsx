@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { BrandLogo } from '@/components/shared/brand-logo';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -45,6 +44,12 @@ export default function RegisterPage() {
       return;
     }
 
+    if (!formData.twitterHandle.trim()) {
+      setError('Twitter handle is required for clip verification');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
@@ -53,7 +58,7 @@ export default function RegisterPage() {
           name: formData.name,
           email: formData.email,
           password: formData.password,
-          twitterHandle: formData.twitterHandle || undefined,
+          twitterHandle: formData.twitterHandle,
           telegramHandle: formData.telegramHandle || undefined,
         }),
       });
@@ -89,7 +94,9 @@ export default function RegisterPage() {
     <Card className="w-full max-w-md">
       <CardHeader className="space-y-4">
         <div className="flex justify-center">
-          <BrandLogo className="h-10 w-auto text-black" />
+          <span className="text-2xl font-bold tracking-tight">
+            <span className="text-[#4ADE80]">Web3</span>Clipper
+          </span>
         </div>
         <CardDescription className="text-center">
           Create an account to start clipping
@@ -129,31 +136,35 @@ export default function RegisterPage() {
               disabled={isLoading}
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="twitterHandle">Twitter Handle</Label>
-              <Input
-                id="twitterHandle"
-                name="twitterHandle"
-                type="text"
-                placeholder="@username"
-                value={formData.twitterHandle}
-                onChange={handleChange}
-                disabled={isLoading}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="telegramHandle">Telegram</Label>
-              <Input
-                id="telegramHandle"
-                name="telegramHandle"
-                type="text"
-                placeholder="@username"
-                value={formData.telegramHandle}
-                onChange={handleChange}
-                disabled={isLoading}
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="twitterHandle">
+              Twitter Handle <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="twitterHandle"
+              name="twitterHandle"
+              type="text"
+              placeholder="@username"
+              value={formData.twitterHandle}
+              onChange={handleChange}
+              required
+              disabled={isLoading}
+            />
+            <p className="text-xs text-muted-foreground">
+              Required for clip verification. We match your tweets against this handle.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="telegramHandle">Telegram (optional)</Label>
+            <Input
+              id="telegramHandle"
+              name="telegramHandle"
+              type="text"
+              placeholder="@username"
+              value={formData.telegramHandle}
+              onChange={handleChange}
+              disabled={isLoading}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>

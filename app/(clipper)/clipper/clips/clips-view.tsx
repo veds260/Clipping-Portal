@@ -10,39 +10,35 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { ExternalLink, Eye, Edit2, Copy } from 'lucide-react';
+import { ExternalLink, Eye, Heart, Repeat2, Copy, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { updateClipperMetrics } from '@/lib/actions/clips';
+import { refreshClipMetrics } from '@/lib/actions/clips';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 
+interface TagCompliance {
+  compliant: boolean;
+  found: string[];
+  missing: string[];
+}
+
 interface Clip {
   id: string;
-  title: string | null;
-  hook: string | null;
   platform: string;
   platformPostUrl: string;
+  campaignName: string | null;
   views: number | null;
   likes: number | null;
+  retweets: number | null;
   comments: number | null;
-  shares: number | null;
   status: string | null;
   rejectionReason: string | null;
   payoutAmount: string | null;
   isDuplicate: boolean | null;
+  tagCompliance: TagCompliance | null;
   createdAt: Date | null;
 }
 
@@ -51,50 +47,30 @@ interface ClipperClipsViewProps {
 }
 
 const statusColors: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  approved: 'bg-green-100 text-green-800',
-  rejected: 'bg-red-100 text-red-800',
-  paid: 'bg-blue-100 text-blue-800',
-};
-
-const platformColors: Record<string, string> = {
-  tiktok: 'bg-pink-100 text-pink-800',
-  instagram: 'bg-purple-100 text-purple-800',
-  youtube_shorts: 'bg-red-100 text-red-800',
-  twitter: 'bg-sky-100 text-sky-800',
+  pending: 'bg-yellow-900/30 text-yellow-400 border-yellow-700',
+  approved: 'bg-green-900/30 text-green-400 border-green-700',
+  rejected: 'bg-red-900/30 text-red-400 border-red-700',
+  paid: 'bg-blue-900/30 text-blue-400 border-blue-700',
 };
 
 export function ClipperClipsView({ clips }: ClipperClipsViewProps) {
   const [filter, setFilter] = useState<string>('all');
-  const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
-  const [selectedClip, setSelectedClip] = useState<Clip | null>(null);
-  const [views, setViews] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
+  const [refreshingId, setRefreshingId] = useState<string | null>(null);
 
   const filteredClips = filter === 'all'
     ? clips
     : clips.filter(clip => clip.status === filter);
 
-  const handleUpdateViews = async () => {
-    if (!selectedClip) return;
-
-    setIsLoading(true);
-    const result = await updateClipperMetrics(selectedClip.id, views);
-    setIsLoading(false);
+  const handleRefreshMetrics = async (clipId: string) => {
+    setRefreshingId(clipId);
+    const result = await refreshClipMetrics(clipId);
+    setRefreshingId(null);
 
     if (result.error) {
       toast.error(result.error);
     } else {
-      toast.success('Views updated');
-      setUpdateDialogOpen(false);
-      setSelectedClip(null);
+      toast.success(`Metrics refreshed: ${formatNumber(result.views || 0)} views`);
     }
-  };
-
-  const openUpdateDialog = (clip: Clip) => {
-    setSelectedClip(clip);
-    setViews(clip.views || 0);
-    setUpdateDialogOpen(true);
   };
 
   const formatNumber = (num: number | null) => {
@@ -114,8 +90,20 @@ export function ClipperClipsView({ clips }: ClipperClipsViewProps) {
 
   // Calculate summary stats
   const totalViews = clips.reduce((sum, c) => sum + (c.views || 0), 0);
-  const totalEarnings = clips.reduce((sum, c) => sum + parseFloat(c.payoutAmount || '0'), 0);
   const approvedCount = clips.filter(c => c.status === 'approved' || c.status === 'paid').length;
+  const paidTotal = clips.filter(c => c.status === 'paid').reduce((sum, c) => sum + parseFloat(c.payoutAmount || '0'), 0);
+
+  // Earnings display for a clip
+  const getEarningsDisplay = (clip: Clip) => {
+    if (clip.status === 'paid' && clip.payoutAmount) {
+      return <span className="text-blue-400">Paid: {formatCurrency(clip.payoutAmount)}</span>;
+    }
+    if (clip.status === 'approved' && clip.payoutAmount) {
+      return <span className="text-green-400">~{formatCurrency(clip.payoutAmount)}</span>;
+    }
+    // Pending or rejected clips don't show dollar amounts
+    return <span className="text-muted-foreground">--</span>;
+  };
 
   return (
     <div className="space-y-6">
@@ -141,8 +129,8 @@ export function ClipperClipsView({ clips }: ClipperClipsViewProps) {
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{formatCurrency(totalEarnings.toString())}</div>
-            <p className="text-xs text-muted-foreground">Total Earnings</p>
+            <div className="text-2xl font-bold">{formatCurrency(paidTotal.toString())}</div>
+            <p className="text-xs text-muted-foreground">Total Paid</p>
           </CardContent>
         </Card>
       </div>
@@ -171,9 +159,9 @@ export function ClipperClipsView({ clips }: ClipperClipsViewProps) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Platform</TableHead>
-              <TableHead>Hook/Title</TableHead>
-              <TableHead>Views</TableHead>
+              <TableHead>Campaign</TableHead>
+              <TableHead>Metrics</TableHead>
+              <TableHead>Tags</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Earnings</TableHead>
               <TableHead>Submitted</TableHead>
@@ -190,21 +178,73 @@ export function ClipperClipsView({ clips }: ClipperClipsViewProps) {
             ) : (
               filteredClips.map((clip) => (
                 <TableRow key={clip.id}>
-                  <TableCell>
-                    <Badge className={platformColors[clip.platform] || ''} variant="outline">
-                      {clip.platform.replace('_', ' ')}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="max-w-[200px]">
+                  <TableCell className="max-w-[160px]">
                     <p className="truncate text-sm font-medium">
-                      {clip.hook || clip.title || 'No title'}
+                      {clip.campaignName || 'No campaign'}
                     </p>
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Eye className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">{formatNumber(clip.views)}</span>
+                    <div className="flex items-center gap-3 text-sm">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-1">
+                              <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span className="font-medium">{formatNumber(clip.views)}</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>Views</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-1">
+                              <Heart className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span>{formatNumber(clip.likes)}</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>Likes</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-1">
+                              <Repeat2 className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span>{formatNumber(clip.retweets)}</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>Retweets</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    {clip.tagCompliance ? (
+                      clip.tagCompliance.compliant ? (
+                        <Badge className="bg-green-900/30 text-green-400 border-green-700" variant="outline">
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          Pass
+                        </Badge>
+                      ) : (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge className="bg-red-900/30 text-red-400 border-red-700" variant="outline">
+                                <XCircle className="h-3 w-3 mr-1" />
+                                Fail
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Missing: {clip.tagCompliance.missing.join(', ')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )
+                    ) : (
+                      <span className="text-xs text-muted-foreground">N/A</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="space-y-1">
@@ -215,7 +255,7 @@ export function ClipperClipsView({ clips }: ClipperClipsViewProps) {
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Badge className="bg-orange-100 text-orange-800 border-orange-300" variant="outline">
+                              <Badge className="bg-orange-900/30 text-orange-400 border-orange-700" variant="outline">
                                 <Copy className="h-3 w-3 mr-1" />
                                 Duplicate
                               </Badge>
@@ -231,22 +271,30 @@ export function ClipperClipsView({ clips }: ClipperClipsViewProps) {
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="font-medium">
-                    {clip.payoutAmount ? formatCurrency(clip.payoutAmount) : '-'}
+                  <TableCell className="font-medium text-sm">
+                    {getEarningsDisplay(clip)}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {clip.createdAt ? format(new Date(clip.createdAt), 'MMM d, yyyy') : 'N/A'}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openUpdateDialog(clip)}
-                        title="Update views"
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRefreshMetrics(clip.id)}
+                              disabled={refreshingId === clip.id}
+                              title="Refresh metrics"
+                            >
+                              <RefreshCw className={`h-4 w-4 ${refreshingId === clip.id ? 'animate-spin' : ''}`} />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Refresh metrics</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                       <a
                         href={clip.platformPostUrl}
                         target="_blank"
@@ -264,41 +312,6 @@ export function ClipperClipsView({ clips }: ClipperClipsViewProps) {
           </TableBody>
         </Table>
       </div>
-
-      {/* Update Views Dialog */}
-      <Dialog open={updateDialogOpen} onOpenChange={setUpdateDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Update View Count</DialogTitle>
-            <DialogDescription>
-              Enter the current view count for your clip. This will be verified by the team.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="views">Current Views</Label>
-              <Input
-                id="views"
-                type="number"
-                value={views}
-                onChange={(e) => setViews(parseInt(e.target.value) || 0)}
-                className="mt-2"
-              />
-            </div>
-            <p className="text-sm text-muted-foreground">
-              You can check your view count on {selectedClip?.platform.replace('_', ' ')} and enter it here.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setUpdateDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleUpdateViews} disabled={isLoading}>
-              {isLoading ? 'Updating...' : 'Update Views'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

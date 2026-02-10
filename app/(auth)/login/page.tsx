@@ -10,7 +10,6 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BrandLogo } from '@/components/shared/brand-logo';
 
 function LoginForm() {
   const router = useRouter();
@@ -52,7 +51,9 @@ function LoginForm() {
     <Card className="w-full max-w-md">
       <CardHeader className="space-y-4">
         <div className="flex justify-center">
-          <BrandLogo className="h-10 w-auto text-black" />
+          <span className="text-2xl font-bold tracking-tight">
+            <span className="text-[#4ADE80]">Web3</span>Clipper
+          </span>
         </div>
         <CardDescription className="text-center">
           Sign in to your account

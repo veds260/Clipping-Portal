@@ -1,10 +1,10 @@
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
-import { campaigns, clients, clips } from '@/lib/db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { campaigns, clips } from '@/lib/db/schema';
+import { sql } from 'drizzle-orm';
 import { Button } from '@/components/ui/button';
-import { Plus, Megaphone, Eye, Film, DollarSign } from 'lucide-react';
+import { Plus, Megaphone } from 'lucide-react';
 import Link from 'next/link';
 import { CampaignsTable } from './campaigns-table';
 
@@ -17,20 +17,18 @@ async function getCampaigns() {
       id: campaigns.id,
       name: campaigns.name,
       description: campaigns.description,
-      sourceContentType: campaigns.sourceContentType,
+      brandName: campaigns.brandName,
+      brandLogoUrl: campaigns.brandLogoUrl,
       startDate: campaigns.startDate,
       endDate: campaigns.endDate,
       budgetCap: campaigns.budgetCap,
-      payRatePer1k: campaigns.payRatePer1k,
       status: campaigns.status,
-      tierRequirement: campaigns.tierRequirement,
+      tier1CpmRate: campaigns.tier1CpmRate,
+      tier2CpmRate: campaigns.tier2CpmRate,
+      tier3FixedRate: campaigns.tier3FixedRate,
       createdAt: campaigns.createdAt,
-      clientId: campaigns.clientId,
-      clientName: clients.name,
-      clientBrandName: clients.brandName,
     })
     .from(campaigns)
-    .leftJoin(clients, eq(campaigns.clientId, clients.id))
     .orderBy(campaigns.createdAt);
 
   // Get clip stats for each campaign
@@ -82,7 +80,7 @@ export default async function CampaignsPage() {
         <div>
           <h1 className="text-3xl font-bold">Campaigns</h1>
           <p className="text-muted-foreground">
-            Manage client campaigns and track performance
+            Manage campaigns and track performance
           </p>
         </div>
         <Link href="/admin/campaigns/new">

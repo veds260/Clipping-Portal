@@ -15,8 +15,6 @@ import {
   Upload,
   FileText,
   User,
-  Radio,
-  Briefcase,
   Megaphone,
   ChevronLeft,
   ChevronRight,
@@ -40,11 +38,9 @@ interface NavItem {
 
 const adminNavItems: NavItem[] = [
   { title: 'Overview', href: '/admin', icon: LayoutDashboard },
-  { title: 'Channels', href: '/admin/channels', icon: Radio },
+  { title: 'Campaigns', href: '/admin/campaigns', icon: Megaphone },
   { title: 'Clips', href: '/admin/clips', icon: Film },
   { title: 'Clippers', href: '/admin/clippers', icon: Users },
-  { title: 'Clients', href: '/admin/clients', icon: Briefcase },
-  { title: 'Campaigns', href: '/admin/campaigns', icon: Megaphone },
   { title: 'Payouts', href: '/admin/payouts', icon: DollarSign },
   { title: 'Settings', href: '/admin/settings', icon: Settings },
 ];
@@ -58,14 +54,8 @@ const clipperNavItems: NavItem[] = [
   { title: 'Profile', href: '/clipper/profile', icon: User },
 ];
 
-const clientNavItems: NavItem[] = [
-  { title: 'Dashboard', href: '/client', icon: LayoutDashboard },
-  { title: 'Campaigns', href: '/client/campaigns', icon: Megaphone },
-  { title: 'Clips', href: '/client/clips', icon: Film },
-];
-
 interface SidebarProps {
-  userRole?: 'admin' | 'clipper' | 'client';
+  userRole?: 'admin' | 'clipper';
   userName?: string;
   variant?: 'admin' | 'clipper';
 }
@@ -94,9 +84,8 @@ export function Sidebar({ userRole, userName, variant }: SidebarProps) {
     localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(newValue));
   };
 
-  // Support both old variant prop and new userRole prop
   const role = userRole || variant || 'clipper';
-  const navItems = role === 'admin' ? adminNavItems : role === 'client' ? clientNavItems : clipperNavItems;
+  const navItems = role === 'admin' ? adminNavItems : clipperNavItems;
 
   const handleSignOut = () => {
     signOut({ callbackUrl: '/login' });
@@ -104,14 +93,12 @@ export function Sidebar({ userRole, userName, variant }: SidebarProps) {
 
   const getHomeUrl = () => {
     if (role === 'admin') return '/admin';
-    if (role === 'client') return '/client';
     return '/clipper';
   };
 
   const getPortalName = () => {
-    if (role === 'admin') return 'Admin Dashboard';
-    if (role === 'client') return 'Client Portal';
-    return 'Clipper Portal';
+    if (role === 'admin') return 'W3C Admin';
+    return 'W3C Clipper';
   };
 
   // Prevent hydration mismatch by rendering expanded state initially
@@ -174,7 +161,7 @@ export function Sidebar({ userRole, userName, variant }: SidebarProps) {
           <nav className="space-y-1">
             {navItems.map((item) => {
               const isActive = pathname === item.href ||
-                (item.href !== '/admin' && item.href !== '/clipper' && item.href !== '/client' && pathname.startsWith(item.href));
+                (item.href !== '/admin' && item.href !== '/clipper' && pathname.startsWith(item.href));
 
               const linkContent = (
                 <Link

@@ -1,17 +1,15 @@
-import { pgTable, uuid, varchar, text, timestamp, decimal, integer, bigint, boolean, pgEnum, jsonb, index } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, timestamp, decimal, integer, bigint, boolean, pgEnum, jsonb, index, uniqueIndex } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 // Enums
-export const userRoleEnum = pgEnum('user_role', ['admin', 'clipper', 'client']);
-export const clipperTierEnum = pgEnum('clipper_tier', ['entry', 'approved', 'core']);
+export const userRoleEnum = pgEnum('user_role', ['admin', 'clipper']);
+export const clipperTierEnum = pgEnum('clipper_tier', ['tier1', 'tier2', 'tier3']);
 export const clipperStatusEnum = pgEnum('clipper_status', ['active', 'suspended', 'pending']);
-export const sourceContentTypeEnum = pgEnum('source_content_type', ['podcast', 'interview', 'livestream', 'other']);
 export const campaignStatusEnum = pgEnum('campaign_status', ['draft', 'active', 'paused', 'completed']);
 export const platformEnum = pgEnum('platform', ['tiktok', 'instagram', 'youtube_shorts', 'twitter']);
 export const clipStatusEnum = pgEnum('clip_status', ['pending', 'approved', 'rejected', 'paid']);
 export const payoutBatchStatusEnum = pgEnum('payout_batch_status', ['draft', 'processing', 'completed', 'cancelled']);
 export const clipperPayoutStatusEnum = pgEnum('clipper_payout_status', ['pending', 'paid']);
-export const channelStatusEnum = pgEnum('channel_status', ['active', 'paused', 'growing']);
 
 // Users table
 export const users = pgTable('users', {
@@ -34,7 +32,7 @@ export const users = pgTable('users', {
 export const clipperProfiles = pgTable('clipper_profiles', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
-  tier: clipperTierEnum('tier').default('entry'),
+  tier: clipperTierEnum('tier').default('tier1'),
   telegramHandle: varchar('telegram_handle', { length: 100 }),
   totalViews: bigint('total_views', { mode: 'number' }).default(0),
   totalEarnings: decimal('total_earnings', { precision: 10, scale: 2 }).default('0'),
@@ -53,94 +51,55 @@ export const clipperProfiles = pgTable('clipper_profiles', {
   index('idx_clipper_profiles_created_at').on(table.createdAt),
 ]);
 
-// Clients
-export const clients = pgTable('clients', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
-  name: varchar('name', { length: 255 }).notNull(),
-  brandName: varchar('brand_name', { length: 255 }),
-  twitterHandle: varchar('twitter_handle', { length: 100 }),
-  logoUrl: text('logo_url'),
-  monthlyBudget: decimal('monthly_budget', { precision: 10, scale: 2 }),
-  budgetSpentThisMonth: decimal('budget_spent_this_month', { precision: 10, scale: 2 }).default('0'),
-  payRatePer1k: decimal('pay_rate_per_1k', { precision: 5, scale: 2 }),
-  contentGuidelines: text('content_guidelines'),
-  isActive: boolean('is_active').default(true),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
-}, (table) => [
-  index('idx_clients_user').on(table.userId),
-  index('idx_clients_is_active').on(table.isActive),
-  index('idx_clients_created_at').on(table.createdAt),
-]);
-
-// Campaigns
+// Campaigns (admin-managed, per-campaign tier rates and caps)
 export const campaigns = pgTable('campaigns', {
   id: uuid('id').primaryKey().defaultRandom(),
-  clientId: uuid('client_id').references(() => clients.id, { onDelete: 'cascade' }),
   name: varchar('name', { length: 255 }).notNull(),
   description: text('description'),
-  sourceContentUrl: text('source_content_url'),
-  sourceContentType: sourceContentTypeEnum('source_content_type'),
+  brandName: varchar('brand_name', { length: 255 }),
+  brandLogoUrl: text('brand_logo_url'),
   startDate: timestamp('start_date'),
   endDate: timestamp('end_date'),
   budgetCap: decimal('budget_cap', { precision: 10, scale: 2 }),
-  payRatePer1k: decimal('pay_rate_per_1k', { precision: 5, scale: 2 }),
   status: campaignStatusEnum('status').default('draft'),
-  tierRequirement: clipperTierEnum('tier_requirement'),
+
+  // Per-tier payment rates
+  tier1CpmRate: decimal('tier1_cpm_rate', { precision: 5, scale: 2 }).default('0'),
+  tier2CpmRate: decimal('tier2_cpm_rate', { precision: 5, scale: 2 }).default('0'),
+  tier3FixedRate: decimal('tier3_fixed_rate', { precision: 10, scale: 2 }).default('0'),
+
+  // Anti-gaming caps per tier
+  tier1MaxPerClip: decimal('tier1_max_per_clip', { precision: 10, scale: 2 }),
+  tier2MaxPerClip: decimal('tier2_max_per_clip', { precision: 10, scale: 2 }),
+  tier1MaxPerCampaign: decimal('tier1_max_per_campaign', { precision: 10, scale: 2 }),
+  tier2MaxPerCampaign: decimal('tier2_max_per_campaign', { precision: 10, scale: 2 }),
+  tier3MaxPerCampaign: decimal('tier3_max_per_campaign', { precision: 10, scale: 2 }),
+
+  // Tag detection
+  requiredTags: jsonb('required_tags').$type<string[]>().default([]),
+
+  // Guidelines
+  contentGuidelines: text('content_guidelines'),
+
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => [
-  index('idx_campaigns_client').on(table.clientId),
   index('idx_campaigns_status').on(table.status),
   index('idx_campaigns_created_at').on(table.createdAt),
 ]);
 
-// Distribution Channels (owned by Compound)
-export const distributionChannels = pgTable('distribution_channels', {
+// Campaign-Clipper assignments (which clippers are in which campaigns at what tier)
+export const campaignClipperAssignments = pgTable('campaign_clipper_assignments', {
   id: uuid('id').primaryKey().defaultRandom(),
-  name: varchar('name', { length: 255 }).notNull(), // e.g., "Crypto Alpha"
-  niche: varchar('niche', { length: 100 }).notNull(), // e.g., "crypto", "ai", "finance"
-  description: text('description'),
-
-  // Platform accounts for this channel
-  tiktokHandle: varchar('tiktok_handle', { length: 100 }),
-  tiktokUrl: text('tiktok_url'),
-  tiktokFollowers: integer('tiktok_followers').default(0),
-
-  instagramHandle: varchar('instagram_handle', { length: 100 }),
-  instagramUrl: text('instagram_url'),
-  instagramFollowers: integer('instagram_followers').default(0),
-
-  youtubeHandle: varchar('youtube_handle', { length: 100 }),
-  youtubeUrl: text('youtube_url'),
-  youtubeSubscribers: integer('youtube_subscribers').default(0),
-
-  twitterHandle: varchar('twitter_handle', { length: 100 }),
-  twitterUrl: text('twitter_url'),
-  twitterFollowers: integer('twitter_followers').default(0),
-
-  // Aggregate stats
-  totalFollowers: integer('total_followers').default(0),
-  totalClipsPosted: integer('total_clips_posted').default(0),
-  totalViews: bigint('total_views', { mode: 'number' }).default(0),
-
-  // Management
-  status: channelStatusEnum('status').default('growing'),
-  tierRequired: clipperTierEnum('tier_required').default('core'), // Who can post to this channel
-  contentGuidelines: text('content_guidelines'), // Channel-specific guidelines
-  targetAudience: text('target_audience'),
-  exampleContent: text('example_content'), // Examples of what works
-
-  // For non-client content (filler/growth content)
-  allowsFillerContent: boolean('allows_filler_content').default(true),
-  fillerContentSources: text('filler_content_sources'), // Popular accounts to clip from
-
+  campaignId: uuid('campaign_id').references(() => campaigns.id, { onDelete: 'cascade' }).notNull(),
+  clipperId: uuid('clipper_id').references(() => clipperProfiles.id, { onDelete: 'cascade' }).notNull(),
+  assignedTier: clipperTierEnum('assigned_tier').notNull(),
+  totalEarnedInCampaign: decimal('total_earned_in_campaign', { precision: 10, scale: 2 }).default('0'),
   createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => [
-  index('idx_channels_status').on(table.status),
-  index('idx_channels_niche').on(table.niche),
+  uniqueIndex('idx_assignment_campaign_clipper').on(table.campaignId, table.clipperId),
+  index('idx_assignments_campaign').on(table.campaignId),
+  index('idx_assignments_clipper').on(table.clipperId),
 ]);
 
 // Clips
@@ -148,33 +107,26 @@ export const clips = pgTable('clips', {
   id: uuid('id').primaryKey().defaultRandom(),
   campaignId: uuid('campaign_id').references(() => campaigns.id, { onDelete: 'set null' }),
   clipperId: uuid('clipper_id').references(() => clipperProfiles.id, { onDelete: 'set null' }),
-  clientId: uuid('client_id').references(() => clients.id, { onDelete: 'set null' }),
-  channelId: uuid('channel_id').references(() => distributionChannels.id, { onDelete: 'set null' }),
-
-  // Content type
-  isFillerContent: boolean('is_filler_content').default(false), // True if not client content
-  sourceCreator: varchar('source_creator', { length: 255 }), // Who was clipped (for filler)
-
-  // Content metadata
-  title: varchar('title', { length: 255 }),
-  hook: text('hook'),
-  description: text('description'),
-  durationSeconds: integer('duration_seconds'),
-  thumbnailUrl: text('thumbnail_url'),
 
   // Platform posting info
   platform: platformEnum('platform').notNull(),
   platformPostUrl: text('platform_post_url').notNull(),
   platformPostId: varchar('platform_post_id', { length: 255 }),
+  tweetId: varchar('tweet_id', { length: 255 }),
+  tweetText: text('tweet_text'),
+  authorUsername: varchar('author_username', { length: 255 }),
 
-  // Metrics
+  // Metrics (auto-fetched via Twitter API)
   views: integer('views').default(0),
   likes: integer('likes').default(0),
   comments: integer('comments').default(0),
   shares: integer('shares').default(0),
+  retweets: integer('retweets').default(0),
+  impressions: integer('impressions').default(0),
   metricsUpdatedAt: timestamp('metrics_updated_at'),
-  metricsUpdatedBy: uuid('metrics_updated_by').references(() => users.id),
-  metricsScreenshotUrl: text('metrics_screenshot_url'),
+
+  // Tag compliance
+  tagCompliance: jsonb('tag_compliance').$type<{ compliant: boolean; found: string[]; missing: string[] }>(),
 
   // Status and approval
   status: clipStatusEnum('status').default('pending'),
@@ -196,13 +148,11 @@ export const clips = pgTable('clips', {
 }, (table) => [
   index('idx_clips_clipper').on(table.clipperId),
   index('idx_clips_campaign').on(table.campaignId),
-  index('idx_clips_client').on(table.clientId),
-  index('idx_clips_channel').on(table.channelId),
   index('idx_clips_status').on(table.status),
   index('idx_clips_posted_at').on(table.postedAt),
   index('idx_clips_created_at').on(table.createdAt),
   index('idx_clips_platform_url').on(table.platformPostUrl),
-  // Composite indexes for common query patterns
+  index('idx_clips_tweet_id').on(table.tweetId),
   index('idx_clips_status_created').on(table.status, table.createdAt),
   index('idx_clips_clipper_status').on(table.clipperId, table.status),
 ]);
@@ -226,6 +176,7 @@ export const clipperPayouts = pgTable('clipper_payouts', {
   id: uuid('id').primaryKey().defaultRandom(),
   batchId: uuid('batch_id').references(() => payoutBatches.id, { onDelete: 'cascade' }),
   clipperId: uuid('clipper_id').references(() => clipperProfiles.id, { onDelete: 'set null' }),
+  campaignId: uuid('campaign_id').references(() => campaigns.id, { onDelete: 'set null' }),
   totalViews: bigint('total_views', { mode: 'number' }).default(0),
   clipsCount: integer('clips_count').default(0),
   amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
@@ -237,6 +188,7 @@ export const clipperPayouts = pgTable('clipper_payouts', {
 }, (table) => [
   index('idx_clipper_payouts_batch').on(table.batchId),
   index('idx_clipper_payouts_clipper').on(table.clipperId),
+  index('idx_clipper_payouts_campaign').on(table.campaignId),
   index('idx_clipper_payouts_status').on(table.status),
 ]);
 
@@ -279,27 +231,23 @@ export const clipperProfilesRelations = relations(clipperProfiles, ({ one, many 
   }),
   clips: many(clips),
   payouts: many(clipperPayouts),
+  campaignAssignments: many(campaignClipperAssignments),
 }));
 
-export const clientsRelations = relations(clients, ({ one, many }) => ({
-  user: one(users, {
-    fields: [clients.userId],
-    references: [users.id],
+export const campaignsRelations = relations(campaigns, ({ many }) => ({
+  clips: many(clips),
+  assignments: many(campaignClipperAssignments),
+}));
+
+export const campaignClipperAssignmentsRelations = relations(campaignClipperAssignments, ({ one }) => ({
+  campaign: one(campaigns, {
+    fields: [campaignClipperAssignments.campaignId],
+    references: [campaigns.id],
   }),
-  campaigns: many(campaigns),
-  clips: many(clips),
-}));
-
-export const campaignsRelations = relations(campaigns, ({ one, many }) => ({
-  client: one(clients, {
-    fields: [campaigns.clientId],
-    references: [clients.id],
+  clipper: one(clipperProfiles, {
+    fields: [campaignClipperAssignments.clipperId],
+    references: [clipperProfiles.id],
   }),
-  clips: many(clips),
-}));
-
-export const distributionChannelsRelations = relations(distributionChannels, ({ many }) => ({
-  clips: many(clips),
 }));
 
 export const clipsRelations = relations(clips, ({ one }) => ({
@@ -310,18 +258,6 @@ export const clipsRelations = relations(clips, ({ one }) => ({
   clipper: one(clipperProfiles, {
     fields: [clips.clipperId],
     references: [clipperProfiles.id],
-  }),
-  client: one(clients, {
-    fields: [clips.clientId],
-    references: [clients.id],
-  }),
-  channel: one(distributionChannels, {
-    fields: [clips.channelId],
-    references: [distributionChannels.id],
-  }),
-  metricsUpdater: one(users, {
-    fields: [clips.metricsUpdatedBy],
-    references: [users.id],
   }),
   approver: one(users, {
     fields: [clips.approvedBy],
@@ -346,6 +282,10 @@ export const clipperPayoutsRelations = relations(clipperPayouts, ({ one }) => ({
     fields: [clipperPayouts.clipperId],
     references: [clipperProfiles.id],
   }),
+  campaign: one(campaigns, {
+    fields: [clipperPayouts.campaignId],
+    references: [campaigns.id],
+  }),
 }));
 
 // Types
@@ -353,10 +293,10 @@ export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type ClipperProfile = typeof clipperProfiles.$inferSelect;
 export type NewClipperProfile = typeof clipperProfiles.$inferInsert;
-export type Client = typeof clients.$inferSelect;
-export type NewClient = typeof clients.$inferInsert;
 export type Campaign = typeof campaigns.$inferSelect;
 export type NewCampaign = typeof campaigns.$inferInsert;
+export type CampaignClipperAssignment = typeof campaignClipperAssignments.$inferSelect;
+export type NewCampaignClipperAssignment = typeof campaignClipperAssignments.$inferInsert;
 export type Clip = typeof clips.$inferSelect;
 export type NewClip = typeof clips.$inferInsert;
 export type PayoutBatch = typeof payoutBatches.$inferSelect;
@@ -365,5 +305,3 @@ export type ClipperPayout = typeof clipperPayouts.$inferSelect;
 export type NewClipperPayout = typeof clipperPayouts.$inferInsert;
 export type PlatformSetting = typeof platformSettings.$inferSelect;
 export type ActivityLogEntry = typeof activityLog.$inferSelect;
-export type DistributionChannel = typeof distributionChannels.$inferSelect;
-export type NewDistributionChannel = typeof distributionChannels.$inferInsert;

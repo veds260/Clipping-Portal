@@ -1,7 +1,7 @@
 import { auth } from '@/lib/auth';
 import { redirect, notFound } from 'next/navigation';
 import { db } from '@/lib/db';
-import { clients, campaigns } from '@/lib/db/schema';
+import { campaigns } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { CampaignForm } from '../../campaign-form';
 import { Button } from '@/components/ui/button';
@@ -17,17 +17,6 @@ async function getCampaign(id: string) {
   return campaign;
 }
 
-async function getActiveClients() {
-  return db.query.clients.findMany({
-    where: eq(clients.isActive, true),
-    columns: {
-      id: true,
-      name: true,
-      brandName: true,
-    },
-  });
-}
-
 export default async function EditCampaignPage({
   params,
 }: {
@@ -40,10 +29,7 @@ export default async function EditCampaignPage({
   }
 
   const { id } = await params;
-  const [campaign, activeClients] = await Promise.all([
-    getCampaign(id),
-    getActiveClients(),
-  ]);
+  const campaign = await getCampaign(id);
 
   if (!campaign) {
     notFound();
@@ -67,7 +53,10 @@ export default async function EditCampaignPage({
         </p>
       </div>
 
-      <CampaignForm campaign={campaign} clients={activeClients} />
+      <CampaignForm campaign={{
+        ...campaign,
+        requiredTags: (campaign.requiredTags as string[]) || [],
+      }} />
     </div>
   );
 }

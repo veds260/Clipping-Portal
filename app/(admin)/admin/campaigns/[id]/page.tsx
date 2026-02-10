@@ -1,53 +1,41 @@
 import { auth } from '@/lib/auth';
 import { redirect, notFound } from 'next/navigation';
 import { db } from '@/lib/db';
-import { clients, campaigns, clips, clipperProfiles, users } from '@/lib/db/schema';
+import { campaigns, clips, clipperProfiles, users, campaignClipperAssignments } from '@/lib/db/schema';
 import { eq, desc, sql } from 'drizzle-orm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Eye, Heart, MessageCircle, Film, DollarSign, ExternalLink, Edit, ArrowLeft } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Eye, Film, DollarSign, ExternalLink, Edit, ArrowLeft } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
+import { CampaignDetailClient } from './campaign-detail-client';
 
 export const dynamic = 'force-dynamic';
 
-async function getCampaignWithClips(id: string) {
+async function getCampaignData(id: string) {
   const campaign = await db.query.campaigns.findFirst({
     where: eq(campaigns.id, id),
   });
 
   if (!campaign) return null;
 
-  // Get client info
-  const client = campaign.clientId
-    ? await db.query.clients.findFirst({
-        where: eq(clients.id, campaign.clientId),
-      })
-    : null;
-
   // Get clips for this campaign
   const campaignClips = await db
     .select({
       id: clips.id,
-      title: clips.title,
-      hook: clips.hook,
       platform: clips.platform,
       platformPostUrl: clips.platformPostUrl,
+      tweetText: clips.tweetText,
+      authorUsername: clips.authorUsername,
       views: clips.views,
       likes: clips.likes,
       comments: clips.comments,
       shares: clips.shares,
       status: clips.status,
       payoutAmount: clips.payoutAmount,
+      tagCompliance: clips.tagCompliance,
       postedAt: clips.postedAt,
       createdAt: clips.createdAt,
       clipperId: clips.clipperId,
@@ -59,21 +47,57 @@ async function getCampaignWithClips(id: string) {
     .where(eq(clips.campaignId, id))
     .orderBy(desc(clips.postedAt));
 
+  // Get assignments for this campaign
+  const assignments = await db.query.campaignClipperAssignments.findMany({
+    where: eq(campaignClipperAssignments.campaignId, id),
+    with: {
+      clipper: {
+        with: {
+          user: true,
+        },
+      },
+    },
+  });
+
+  // Get available clippers (active, not already assigned)
+  const allActiveClippers = await db.query.clipperProfiles.findMany({
+    where: eq(clipperProfiles.status, 'active'),
+    with: {
+      user: true,
+    },
+  });
+
+  const assignedClipperIds = new Set(assignments.map(a => a.clipperId));
+  const availableClippers = allActiveClippers.filter(c => !assignedClipperIds.has(c.id));
+
   // Calculate stats
   const totalViews = campaignClips.reduce((sum, clip) => sum + (clip.views || 0), 0);
-  const totalLikes = campaignClips.reduce((sum, clip) => sum + (clip.likes || 0), 0);
   const totalPayout = campaignClips.reduce((sum, clip) => sum + parseFloat(clip.payoutAmount || '0'), 0);
-  const approvedClips = campaignClips.filter(c => c.status === 'approved' || c.status === 'paid');
+
+  // Calculate per-clipper stats from clips
+  const clipperClipCounts = new Map<string, { submitted: number; earnings: number }>();
+  for (const clip of campaignClips) {
+    if (!clip.clipperId) continue;
+    const existing = clipperClipCounts.get(clip.clipperId) || { submitted: 0, earnings: 0 };
+    existing.submitted += 1;
+    existing.earnings += parseFloat(clip.payoutAmount || '0');
+    clipperClipCounts.set(clip.clipperId, existing);
+  }
+
+  const assignmentsWithStats = assignments.map(a => ({
+    ...a,
+    clipsSubmitted: clipperClipCounts.get(a.clipperId)?.submitted || 0,
+    earnings: clipperClipCounts.get(a.clipperId)?.earnings || 0,
+  }));
 
   return {
     campaign,
-    client,
     clips: campaignClips,
+    assignments: assignmentsWithStats,
+    availableClippers,
     stats: {
       totalClips: campaignClips.length,
-      approvedClips: approvedClips.length,
       totalViews,
-      totalLikes,
       totalPayout,
     },
   };
@@ -84,20 +108,6 @@ const statusColors: Record<string, string> = {
   active: 'bg-green-100 text-green-800',
   paused: 'bg-yellow-100 text-yellow-800',
   completed: 'bg-blue-100 text-blue-800',
-};
-
-const clipStatusColors: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  approved: 'bg-green-100 text-green-800',
-  rejected: 'bg-red-100 text-red-800',
-  paid: 'bg-blue-100 text-blue-800',
-};
-
-const platformLabels: Record<string, string> = {
-  tiktok: 'TikTok',
-  instagram: 'Instagram',
-  youtube_shorts: 'YouTube',
-  twitter: 'Twitter/X',
 };
 
 export default async function CampaignDetailPage({
@@ -112,13 +122,13 @@ export default async function CampaignDetailPage({
   }
 
   const { id } = await params;
-  const data = await getCampaignWithClips(id);
+  const data = await getCampaignData(id);
 
   if (!data) {
     notFound();
   }
 
-  const { campaign, client, clips: campaignClips, stats } = data;
+  const { campaign, clips: campaignClips, assignments, availableClippers, stats } = data;
 
   const formatNumber = (num: number | null) => {
     if (!num) return '0';
@@ -162,13 +172,10 @@ export default async function CampaignDetailPage({
             <p className="text-muted-foreground mb-2">{campaign.description}</p>
           )}
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            {client && (
+            {campaign.brandName && (
               <span>
-                Client: <span className="font-medium">{client.brandName || client.name}</span>
+                Brand: <span className="font-medium">{campaign.brandName}</span>
               </span>
-            )}
-            {campaign.sourceContentType && (
-              <span className="capitalize">Type: {campaign.sourceContentType}</span>
             )}
             {campaign.startDate && (
               <span>
@@ -187,7 +194,7 @@ export default async function CampaignDetailPage({
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4 mb-8">
+      <div className="grid gap-4 md:grid-cols-3 mb-8">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Total Clips</CardTitle>
@@ -195,9 +202,6 @@ export default async function CampaignDetailPage({
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalClips}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.approvedClips} approved
-            </p>
           </CardContent>
         </Card>
 
@@ -208,137 +212,32 @@ export default async function CampaignDetailPage({
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatNumber(stats.totalViews)}</div>
-            <p className="text-xs text-muted-foreground">
-              Across all clips
-            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Likes</CardTitle>
-            <Heart className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatNumber(stats.totalLikes)}</div>
-            <p className="text-xs text-muted-foreground">
-              Engagement
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Payout</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Spend</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(stats.totalPayout)}</div>
-            <p className="text-xs text-muted-foreground">
-              {campaign.payRatePer1k ? `$${parseFloat(campaign.payRatePer1k).toFixed(2)}/1K views` : 'No rate set'}
-            </p>
+            {campaign.budgetCap && parseFloat(campaign.budgetCap) > 0 && (
+              <p className="text-xs text-muted-foreground">
+                of {formatCurrency(parseFloat(campaign.budgetCap))} budget
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Clips Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Campaign Clips</CardTitle>
-          <CardDescription>
-            {campaignClips.length} clip{campaignClips.length !== 1 ? 's' : ''} submitted for this campaign
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {campaignClips.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">
-              No clips have been submitted for this campaign yet.
-            </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Clip</TableHead>
-                  <TableHead>Clipper</TableHead>
-                  <TableHead>Platform</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Metrics</TableHead>
-                  <TableHead>Payout</TableHead>
-                  <TableHead>Posted</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {campaignClips.map((clip) => (
-                  <TableRow key={clip.id}>
-                    <TableCell>
-                      <div className="max-w-xs">
-                        <p className="font-medium truncate">{clip.title || 'Untitled'}</p>
-                        {clip.hook && (
-                          <p className="text-xs text-muted-foreground line-clamp-2">
-                            {clip.hook}
-                          </p>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm">
-                        {clip.clipperName || 'Unknown'}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {platformLabels[clip.platform] || clip.platform}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        className={clipStatusColors[clip.status || 'pending']}
-                        variant="outline"
-                      >
-                        {clip.status || 'pending'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Eye className="h-3 w-3" />
-                          {formatNumber(clip.views)}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Heart className="h-3 w-3" />
-                          {formatNumber(clip.likes)}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <MessageCircle className="h-3 w-3" />
-                          {formatNumber(clip.comments)}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm font-medium">
-                        {clip.payoutAmount ? formatCurrency(parseFloat(clip.payoutAmount)) : '-'}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {clip.postedAt ? format(new Date(clip.postedAt), 'MMM d, yyyy') : '-'}
-                    </TableCell>
-                    <TableCell>
-                      {clip.platformPostUrl && (
-                        <Link href={clip.platformPostUrl} target="_blank">
-                          <Button variant="ghost" size="sm">
-                            <ExternalLink className="h-4 w-4" />
-                          </Button>
-                        </Link>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      {/* Tabs */}
+      <CampaignDetailClient
+        campaignId={id}
+        assignments={JSON.parse(JSON.stringify(assignments))}
+        clips={JSON.parse(JSON.stringify(campaignClips))}
+        availableClippers={JSON.parse(JSON.stringify(availableClippers))}
+      />
     </div>
   );
 }

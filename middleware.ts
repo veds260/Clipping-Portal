@@ -21,9 +21,6 @@ export default auth((req) => {
       if (userRole === 'admin') {
         return NextResponse.redirect(new URL('/admin', req.url));
       }
-      if (userRole === 'client') {
-        return NextResponse.redirect(new URL('/client', req.url));
-      }
       return NextResponse.redirect(new URL('/clipper', req.url));
     }
     return NextResponse.next();
@@ -37,30 +34,14 @@ export default auth((req) => {
   // Admin routes require admin role
   if (pathname.startsWith('/admin')) {
     if (userRole !== 'admin') {
-      if (userRole === 'client') {
-        return NextResponse.redirect(new URL('/client', req.url));
-      }
       return NextResponse.redirect(new URL('/clipper', req.url));
     }
   }
 
-  // Client routes require client role
-  if (pathname.startsWith('/client')) {
-    if (userRole === 'admin') {
-      return NextResponse.redirect(new URL('/admin', req.url));
-    }
-    if (userRole !== 'client') {
-      return NextResponse.redirect(new URL('/clipper', req.url));
-    }
-  }
-
-  // Clipper routes - redirect admins and clients to their dashboards
+  // Clipper routes - redirect admins to their dashboard
   if (pathname.startsWith('/clipper')) {
     if (userRole === 'admin') {
       return NextResponse.redirect(new URL('/admin', req.url));
-    }
-    if (userRole === 'client') {
-      return NextResponse.redirect(new URL('/client', req.url));
     }
     if (userRole !== 'clipper') {
       return NextResponse.redirect(new URL('/login', req.url));

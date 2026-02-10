@@ -15,66 +15,107 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { Plus, X } from 'lucide-react';
 import { createCampaign, updateCampaign } from '@/lib/actions/campaigns';
-
-interface Client {
-  id: string;
-  name: string;
-  brandName: string | null;
-}
+import type { CampaignFormData } from '@/lib/actions/campaigns';
 
 interface CampaignFormProps {
   campaign?: {
     id: string;
-    clientId: string | null;
     name: string;
     description: string | null;
-    sourceContentUrl: string | null;
-    sourceContentType: string | null;
+    brandName: string | null;
+    brandLogoUrl: string | null;
     startDate: Date | null;
     endDate: Date | null;
     budgetCap: string | null;
-    payRatePer1k: string | null;
     status: string | null;
-    tierRequirement: string | null;
+    contentGuidelines: string | null;
+    tier1CpmRate: string | null;
+    tier2CpmRate: string | null;
+    tier3FixedRate: string | null;
+    tier1MaxPerClip: string | null;
+    tier2MaxPerClip: string | null;
+    tier1MaxPerCampaign: string | null;
+    tier2MaxPerCampaign: string | null;
+    tier3MaxPerCampaign: string | null;
+    requiredTags: string[] | null;
   };
-  clients: Client[];
 }
 
-export function CampaignForm({ campaign, clients }: CampaignFormProps) {
+export function CampaignForm({ campaign }: CampaignFormProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [newTag, setNewTag] = useState('');
 
   const [formData, setFormData] = useState({
-    clientId: campaign?.clientId || '',
     name: campaign?.name || '',
     description: campaign?.description || '',
-    sourceContentUrl: campaign?.sourceContentUrl || '',
-    sourceContentType: campaign?.sourceContentType || '',
+    brandName: campaign?.brandName || '',
+    brandLogoUrl: campaign?.brandLogoUrl || '',
     startDate: campaign?.startDate ? new Date(campaign.startDate).toISOString().split('T')[0] : '',
     endDate: campaign?.endDate ? new Date(campaign.endDate).toISOString().split('T')[0] : '',
     budgetCap: parseFloat(campaign?.budgetCap || '0') || 0,
-    payRatePer1k: parseFloat(campaign?.payRatePer1k || '0') || 0,
     status: campaign?.status || 'draft',
-    tierRequirement: campaign?.tierRequirement || '',
+    contentGuidelines: campaign?.contentGuidelines || '',
+
+    // Tier rates
+    tier1CpmRate: parseFloat(campaign?.tier1CpmRate || '0') || 0,
+    tier2CpmRate: parseFloat(campaign?.tier2CpmRate || '0') || 0,
+    tier3FixedRate: parseFloat(campaign?.tier3FixedRate || '0') || 0,
+
+    // Anti-gaming caps
+    tier1MaxPerClip: parseFloat(campaign?.tier1MaxPerClip || '0') || 0,
+    tier2MaxPerClip: parseFloat(campaign?.tier2MaxPerClip || '0') || 0,
+    tier1MaxPerCampaign: parseFloat(campaign?.tier1MaxPerCampaign || '0') || 0,
+    tier2MaxPerCampaign: parseFloat(campaign?.tier2MaxPerCampaign || '0') || 0,
+    tier3MaxPerCampaign: parseFloat(campaign?.tier3MaxPerCampaign || '0') || 0,
+
+    // Tags
+    requiredTags: (campaign?.requiredTags as string[]) || [],
   });
+
+  const handleAddTag = () => {
+    const trimmed = newTag.trim();
+    if (!trimmed) return;
+    if (formData.requiredTags.includes(trimmed)) {
+      toast.error('Tag already added');
+      return;
+    }
+    setFormData({ ...formData, requiredTags: [...formData.requiredTags, trimmed] });
+    setNewTag('');
+  };
+
+  const handleRemoveTag = (tag: string) => {
+    setFormData({
+      ...formData,
+      requiredTags: formData.requiredTags.filter(t => t !== tag),
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    const submitData = {
-      clientId: formData.clientId,
+    const submitData: CampaignFormData = {
       name: formData.name,
       description: formData.description || undefined,
-      sourceContentUrl: formData.sourceContentUrl || undefined,
-      sourceContentType: formData.sourceContentType as 'podcast' | 'interview' | 'livestream' | 'other' | undefined,
+      brandName: formData.brandName || undefined,
+      brandLogoUrl: formData.brandLogoUrl || undefined,
       startDate: formData.startDate ? new Date(formData.startDate) : undefined,
       endDate: formData.endDate ? new Date(formData.endDate) : undefined,
       budgetCap: formData.budgetCap || undefined,
-      payRatePer1k: formData.payRatePer1k || undefined,
       status: formData.status as 'draft' | 'active' | 'paused' | 'completed' | undefined,
-      tierRequirement: formData.tierRequirement as 'entry' | 'approved' | 'core' | undefined,
+      contentGuidelines: formData.contentGuidelines || undefined,
+      tier1CpmRate: formData.tier1CpmRate,
+      tier2CpmRate: formData.tier2CpmRate,
+      tier3FixedRate: formData.tier3FixedRate,
+      tier1MaxPerClip: formData.tier1MaxPerClip || undefined,
+      tier2MaxPerClip: formData.tier2MaxPerClip || undefined,
+      tier1MaxPerCampaign: formData.tier1MaxPerCampaign || undefined,
+      tier2MaxPerCampaign: formData.tier2MaxPerCampaign || undefined,
+      tier3MaxPerCampaign: formData.tier3MaxPerCampaign || undefined,
+      requiredTags: formData.requiredTags,
     };
 
     const result = campaign
@@ -94,31 +135,13 @@ export function CampaignForm({ campaign, clients }: CampaignFormProps) {
   return (
     <form onSubmit={handleSubmit}>
       <div className="space-y-6">
+        {/* Campaign Info */}
         <Card>
           <CardHeader>
-            <CardTitle>Campaign Details</CardTitle>
+            <CardTitle>Campaign Info</CardTitle>
             <CardDescription>Basic information about this campaign</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="clientId">Client *</Label>
-              <Select
-                value={formData.clientId}
-                onValueChange={(value) => setFormData({ ...formData, clientId: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a client" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients.map((client) => (
-                    <SelectItem key={client.id} value={client.id}>
-                      {client.name} {client.brandName && `(${client.brandName})`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="name">Campaign Name *</Label>
@@ -157,57 +180,33 @@ export function CampaignForm({ campaign, clients }: CampaignFormProps) {
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Campaign goals, key messaging points, etc."
-                rows={4}
+                rows={3}
               />
             </div>
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Source Content</CardTitle>
-            <CardDescription>Original content that clippers will create clips from</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="sourceContentUrl">Source Content URL</Label>
+                <Label htmlFor="brandName">Brand Name</Label>
                 <Input
-                  id="sourceContentUrl"
-                  value={formData.sourceContentUrl}
-                  onChange={(e) => setFormData({ ...formData, sourceContentUrl: e.target.value })}
-                  placeholder="https://youtube.com/watch?v=..."
+                  id="brandName"
+                  value={formData.brandName}
+                  onChange={(e) => setFormData({ ...formData, brandName: e.target.value })}
+                  placeholder="e.g., Acme Corp"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="sourceContentType">Content Type</Label>
-                <Select
-                  value={formData.sourceContentType}
-                  onValueChange={(value) => setFormData({ ...formData, sourceContentType: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select content type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="podcast">Podcast</SelectItem>
-                    <SelectItem value="interview">Interview</SelectItem>
-                    <SelectItem value="livestream">Livestream</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="brandLogoUrl">Brand Logo URL</Label>
+                <Input
+                  id="brandLogoUrl"
+                  value={formData.brandLogoUrl}
+                  onChange={(e) => setFormData({ ...formData, brandLogoUrl: e.target.value })}
+                  placeholder="https://example.com/logo.png"
+                />
               </div>
             </div>
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Schedule & Budget</CardTitle>
-            <CardDescription>Campaign timeline and financial settings</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-3">
               <div className="space-y-2">
                 <Label htmlFor="startDate">Start Date</Label>
                 <Input
@@ -227,9 +226,7 @@ export function CampaignForm({ campaign, clients }: CampaignFormProps) {
                   onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
                 />
               </div>
-            </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="budgetCap">Budget Cap ($)</Label>
                 <Input
@@ -244,50 +241,220 @@ export function CampaignForm({ campaign, clients }: CampaignFormProps) {
                   Leave at 0 for unlimited
                 </p>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Tier Rate Config */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Tier Rate Config</CardTitle>
+            <CardDescription>
+              Set payment rates per tier. Tier 1 and Tier 2 use CPM (cost per 1K views). Tier 3 uses a fixed rate per clip.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="tier1CpmRate">Tier 1 CPM Rate</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                  <Input
+                    id="tier1CpmRate"
+                    type="number"
+                    step="0.01"
+                    value={formData.tier1CpmRate}
+                    onChange={(e) => setFormData({ ...formData, tier1CpmRate: parseFloat(e.target.value) || 0 })}
+                    className="pl-7"
+                    placeholder="0.00"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">Per 1,000 views</p>
+              </div>
 
               <div className="space-y-2">
-                <Label htmlFor="payRatePer1k">Custom Pay Rate ($ per 1K views)</Label>
-                <Input
-                  id="payRatePer1k"
-                  type="number"
-                  step="0.01"
-                  value={formData.payRatePer1k}
-                  onChange={(e) => setFormData({ ...formData, payRatePer1k: parseFloat(e.target.value) || 0 })}
-                  placeholder="0.00"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Leave at 0 to use tier-based rates
-                </p>
+                <Label htmlFor="tier2CpmRate">Tier 2 CPM Rate</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                  <Input
+                    id="tier2CpmRate"
+                    type="number"
+                    step="0.01"
+                    value={formData.tier2CpmRate}
+                    onChange={(e) => setFormData({ ...formData, tier2CpmRate: parseFloat(e.target.value) || 0 })}
+                    className="pl-7"
+                    placeholder="0.00"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">Per 1,000 views</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="tier3FixedRate">Tier 3 Fixed Rate</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                  <Input
+                    id="tier3FixedRate"
+                    type="number"
+                    step="0.01"
+                    value={formData.tier3FixedRate}
+                    onChange={(e) => setFormData({ ...formData, tier3FixedRate: parseFloat(e.target.value) || 0 })}
+                    className="pl-7"
+                    placeholder="0.00"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">Fixed amount per clip</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
+        {/* Anti-Gaming Caps */}
         <Card>
           <CardHeader>
-            <CardTitle>Requirements</CardTitle>
-            <CardDescription>Who can participate in this campaign</CardDescription>
+            <CardTitle>Anti-Gaming Caps</CardTitle>
+            <CardDescription>
+              Set maximum earnings per clip and per campaign to prevent gaming. Leave at 0 for no cap.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="tier1MaxPerClip">Tier 1 Max Per Clip ($)</Label>
+                <Input
+                  id="tier1MaxPerClip"
+                  type="number"
+                  step="0.01"
+                  value={formData.tier1MaxPerClip}
+                  onChange={(e) => setFormData({ ...formData, tier1MaxPerClip: parseFloat(e.target.value) || 0 })}
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="tier2MaxPerClip">Tier 2 Max Per Clip ($)</Label>
+                <Input
+                  id="tier2MaxPerClip"
+                  type="number"
+                  step="0.01"
+                  value={formData.tier2MaxPerClip}
+                  onChange={(e) => setFormData({ ...formData, tier2MaxPerClip: parseFloat(e.target.value) || 0 })}
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="tier1MaxPerCampaign">Tier 1 Max Per Campaign ($)</Label>
+                <Input
+                  id="tier1MaxPerCampaign"
+                  type="number"
+                  step="0.01"
+                  value={formData.tier1MaxPerCampaign}
+                  onChange={(e) => setFormData({ ...formData, tier1MaxPerCampaign: parseFloat(e.target.value) || 0 })}
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="tier2MaxPerCampaign">Tier 2 Max Per Campaign ($)</Label>
+                <Input
+                  id="tier2MaxPerCampaign"
+                  type="number"
+                  step="0.01"
+                  value={formData.tier2MaxPerCampaign}
+                  onChange={(e) => setFormData({ ...formData, tier2MaxPerCampaign: parseFloat(e.target.value) || 0 })}
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="tier3MaxPerCampaign">Tier 3 Max Per Campaign ($)</Label>
+                <Input
+                  id="tier3MaxPerCampaign"
+                  type="number"
+                  step="0.01"
+                  value={formData.tier3MaxPerCampaign}
+                  onChange={(e) => setFormData({ ...formData, tier3MaxPerCampaign: parseFloat(e.target.value) || 0 })}
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Tag Detection */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Tag Detection</CardTitle>
+            <CardDescription>
+              Required tag patterns that clips must include. Add patterns like @gacha_game_ or #gacha to check for compliance.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-2">
+              <Input
+                value={newTag}
+                onChange={(e) => setNewTag(e.target.value)}
+                placeholder="e.g., @gacha_game_ or #gacha"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddTag();
+                  }
+                }}
+              />
+              <Button type="button" variant="outline" onClick={handleAddTag}>
+                <Plus className="h-4 w-4 mr-1" />
+                Add
+              </Button>
+            </div>
+
+            {formData.requiredTags.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {formData.requiredTags.map((tag) => (
+                  <div
+                    key={tag}
+                    className="flex items-center gap-1 bg-muted px-3 py-1 rounded-full text-sm"
+                  >
+                    <span>{tag}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveTag(tag)}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {formData.requiredTags.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No required tags set. Clips will not be checked for tag compliance.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Content Guidelines */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Content Guidelines</CardTitle>
+            <CardDescription>
+              Specific guidelines for clippers working on this campaign
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              <Label htmlFor="tierRequirement">Minimum Tier Requirement</Label>
-              <Select
-                value={formData.tierRequirement}
-                onValueChange={(value) => setFormData({ ...formData, tierRequirement: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Any tier (no restriction)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="entry">Entry</SelectItem>
-                  <SelectItem value="approved">Approved</SelectItem>
-                  <SelectItem value="core">Core</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Only clippers at or above this tier can submit clips for this campaign
-              </p>
-            </div>
+            <Textarea
+              id="contentGuidelines"
+              value={formData.contentGuidelines}
+              onChange={(e) => setFormData({ ...formData, contentGuidelines: e.target.value })}
+              placeholder="Enter content guidelines for this campaign..."
+              rows={6}
+            />
           </CardContent>
         </Card>
       </div>

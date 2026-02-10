@@ -27,25 +27,64 @@ async function getEarningsData(userId: string) {
 
   if (!profile) return null;
 
-  // Get all payouts
+  // Get all payouts with campaign info
   const payouts = await db.query.clipperPayouts.findMany({
     where: eq(clipperPayouts.clipperId, profile.id),
     orderBy: [desc(clipperPayouts.createdAt)],
     with: {
       batch: true,
+      campaign: true,
     },
   });
 
-  // Get clips with earnings
-  const paidClips = await db.query.clips.findMany({
+  // Get approved/paid clips grouped by campaign
+  const approvedClips = await db.query.clips.findMany({
     where: and(
       eq(clips.clipperId, profile.id),
-      eq(clips.status, 'paid')
     ),
     orderBy: [desc(clips.updatedAt)],
+    with: {
+      campaign: true,
+    },
   });
 
-  // Calculate totals
+  // Group earnings by campaign
+  const campaignEarnings = new Map<string, {
+    campaignName: string;
+    clipCount: number;
+    approvedCount: number;
+    paidAmount: number;
+    approvedAmount: number;
+  }>();
+
+  for (const clip of approvedClips) {
+    const key = clip.campaignId || 'uncategorized';
+    const existing = campaignEarnings.get(key) || {
+      campaignName: clip.campaign?.name || 'Uncategorized',
+      clipCount: 0,
+      approvedCount: 0,
+      paidAmount: 0,
+      approvedAmount: 0,
+    };
+
+    existing.clipCount++;
+
+    if (clip.status === 'approved' || clip.status === 'paid') {
+      existing.approvedCount++;
+    }
+
+    if (clip.status === 'paid' && clip.payoutAmount) {
+      existing.paidAmount += parseFloat(clip.payoutAmount);
+    }
+
+    if (clip.status === 'approved' && clip.payoutAmount) {
+      existing.approvedAmount += parseFloat(clip.payoutAmount);
+    }
+
+    campaignEarnings.set(key, existing);
+  }
+
+  // Calculate totals (only approved/paid amounts)
   const pendingTotal = payouts
     .filter(p => p.status === 'pending')
     .reduce((sum, p) => sum + parseFloat(p.amount), 0);
@@ -57,7 +96,7 @@ async function getEarningsData(userId: string) {
   return {
     profile,
     payouts,
-    paidClips,
+    campaignEarnings: Array.from(campaignEarnings.values()),
     pendingTotal,
     paidTotal,
   };
@@ -71,16 +110,9 @@ function formatCurrency(num: number | string | null): string {
   }).format(value);
 }
 
-function formatNumber(num: number | null): string {
-  if (num === null) return '0';
-  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-  if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-  return num.toString();
-}
-
 const statusColors: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  paid: 'bg-green-100 text-green-800',
+  pending: 'bg-yellow-900/30 text-yellow-400 border-yellow-700',
+  paid: 'bg-green-900/30 text-green-400 border-green-700',
 };
 
 export default async function ClipperEarningsPage() {
@@ -105,14 +137,14 @@ export default async function ClipperEarningsPage() {
     );
   }
 
-  const { profile, payouts, paidClips, pendingTotal, paidTotal } = data;
+  const { profile, payouts, campaignEarnings, pendingTotal, paidTotal } = data;
 
   return (
     <div className="p-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Earnings</h1>
         <p className="text-muted-foreground">
-          Track your earnings and payout history
+          Track your approved earnings and payout history
         </p>
       </div>
 
@@ -159,13 +191,13 @@ export default async function ClipperEarningsPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Paid Clips</CardTitle>
+            <CardTitle className="text-sm font-medium">Campaigns</CardTitle>
             <Film className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{paidClips.length}</div>
+            <div className="text-2xl font-bold">{campaignEarnings.length}</div>
             <p className="text-xs text-muted-foreground">
-              Clips with earnings
+              With clip submissions
             </p>
           </CardContent>
         </Card>
@@ -190,6 +222,7 @@ export default async function ClipperEarningsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Period</TableHead>
+                    <TableHead>Campaign</TableHead>
                     <TableHead>Clips</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Status</TableHead>
@@ -208,14 +241,12 @@ export default async function ClipperEarningsPage() {
                           'N/A'
                         )}
                       </TableCell>
+                      <TableCell className="text-sm">
+                        {payout.campaign?.name || 'N/A'}
+                      </TableCell>
                       <TableCell>{payout.clipsCount || 0}</TableCell>
                       <TableCell className="font-medium">
                         {formatCurrency(payout.amount)}
-                        {parseFloat(payout.bonusAmount || '0') > 0 && (
-                          <span className="text-xs text-green-600 ml-1">
-                            (+{formatCurrency(payout.bonusAmount)} bonus)
-                          </span>
-                        )}
                       </TableCell>
                       <TableCell>
                         <Badge className={statusColors[payout.status || 'pending']} variant="outline">
@@ -230,42 +261,46 @@ export default async function ClipperEarningsPage() {
           </CardContent>
         </Card>
 
-        {/* Clip Earnings Breakdown */}
+        {/* Earnings by Campaign */}
         <Card>
           <CardHeader>
-            <CardTitle>Clip Earnings</CardTitle>
+            <CardTitle>Earnings by Campaign</CardTitle>
             <CardDescription>
-              Individual clip payouts
+              Breakdown per campaign
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {paidClips.length === 0 ? (
+            {campaignEarnings.length === 0 ? (
               <p className="text-center py-8 text-muted-foreground">
-                No paid clips yet. Earnings are calculated when clips are approved and reach the minimum views threshold.
+                No clip submissions yet. Start submitting to see earnings here.
               </p>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Clip</TableHead>
-                    <TableHead>Views</TableHead>
-                    <TableHead>Earnings</TableHead>
+                    <TableHead>Campaign</TableHead>
+                    <TableHead>Clips</TableHead>
+                    <TableHead>Paid</TableHead>
+                    <TableHead>Pending</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {paidClips.slice(0, 10).map((clip) => (
-                    <TableRow key={clip.id}>
+                  {campaignEarnings.map((entry, index) => (
+                    <TableRow key={index}>
                       <TableCell>
                         <p className="text-sm font-medium truncate max-w-[150px]">
-                          {clip.hook || clip.title || 'Untitled'}
+                          {entry.campaignName}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {clip.platform.replace('_', ' ')}
+                          {entry.approvedCount} approved
                         </p>
                       </TableCell>
-                      <TableCell>{formatNumber(clip.views)}</TableCell>
-                      <TableCell className="font-medium">
-                        {formatCurrency(clip.payoutAmount)}
+                      <TableCell>{entry.clipCount}</TableCell>
+                      <TableCell className="font-medium text-green-400">
+                        {entry.paidAmount > 0 ? formatCurrency(entry.paidAmount) : '--'}
+                      </TableCell>
+                      <TableCell className="font-medium text-yellow-400">
+                        {entry.approvedAmount > 0 ? formatCurrency(entry.approvedAmount) : '--'}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -283,12 +318,12 @@ export default async function ClipperEarningsPage() {
         </CardHeader>
         <CardContent className="prose prose-sm max-w-none">
           <ul className="space-y-2 text-muted-foreground">
-            <li>Clips must reach the minimum views threshold (typically 1,000 views) to qualify for payment</li>
-            <li>Payouts are calculated based on views x rate (e.g., $1.50 per 1,000 views)</li>
-            <li>Viral clips (100k+ views) may receive bonus multipliers</li>
-            <li>Payout batches are generated weekly by admins</li>
+            <li><strong className="text-foreground">Tier 1 (CPM):</strong> Earnings are calculated per 1,000 views. The CPM rate is set per campaign by the admin. Each clip and total campaign earnings may have caps.</li>
+            <li><strong className="text-foreground">Tier 2 (CPM):</strong> Same as Tier 1 but with a different CPM rate. Tier 2 rates and caps are configured per campaign.</li>
+            <li><strong className="text-foreground">Tier 3 (Fixed):</strong> You earn a fixed amount per approved clip, regardless of view count. The fixed rate is set per campaign.</li>
+            <li>Payout batches are generated periodically by admins after reviewing clips</li>
+            <li>You can see real-time views on your clips, but earnings only show up after the admin approves a payout batch</li>
             <li>Payments are made via Telegram (not through this platform)</li>
-            <li>Update your view counts regularly to ensure accurate payouts</li>
           </ul>
         </CardContent>
       </Card>

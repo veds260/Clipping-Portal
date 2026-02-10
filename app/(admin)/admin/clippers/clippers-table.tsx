@@ -68,9 +68,15 @@ interface ClippersTableProps {
 }
 
 const tierColors: Record<string, string> = {
-  entry: 'bg-gray-100 text-gray-800',
-  approved: 'bg-blue-100 text-blue-800',
-  core: 'bg-purple-100 text-purple-800',
+  tier1: 'bg-gray-100 text-gray-800',
+  tier2: 'bg-blue-100 text-blue-800',
+  tier3: 'bg-purple-100 text-purple-800',
+};
+
+const tierLabels: Record<string, string> = {
+  tier1: 'Tier 1',
+  tier2: 'Tier 2',
+  tier3: 'Tier 3',
 };
 
 const statusColors: Record<string, string> = {
@@ -114,7 +120,7 @@ export function ClippersTable({ clippers }: ClippersTableProps) {
     if (!selectedClipper || !selectedTier) return;
 
     setIsLoading(true);
-    const result = await updateClipperTier(selectedClipper.id, selectedTier as 'entry' | 'approved' | 'core');
+    const result = await updateClipperTier(selectedClipper.id, selectedTier as 'tier1' | 'tier2' | 'tier3');
     setIsLoading(false);
 
     if (result.error) {
@@ -146,7 +152,7 @@ export function ClippersTable({ clippers }: ClippersTableProps) {
 
   const openTierDialog = (clipper: Clipper) => {
     setSelectedClipper(clipper);
-    setSelectedTier(clipper.tier || 'entry');
+    setSelectedTier(clipper.tier || 'tier1');
     setTierDialogOpen(true);
   };
 
@@ -293,8 +299,8 @@ export function ClippersTable({ clippers }: ClippersTableProps) {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge className={tierColors[clipper.tier || 'entry']} variant="outline">
-                      {clipper.tier || 'entry'}
+                    <Badge className={tierColors[clipper.tier || 'tier1']} variant="outline">
+                      {tierLabels[clipper.tier || 'tier1'] || clipper.tier || 'Tier 1'}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -401,16 +407,16 @@ export function ClippersTable({ clippers }: ClippersTableProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="entry">Entry</SelectItem>
-                  <SelectItem value="approved">Approved</SelectItem>
-                  <SelectItem value="core">Core</SelectItem>
+                  <SelectItem value="tier1">Tier 1</SelectItem>
+                  <SelectItem value="tier2">Tier 2</SelectItem>
+                  <SelectItem value="tier3">Tier 3</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="text-sm text-muted-foreground">
-              <p><strong>Entry:</strong> New clippers, access to basic campaigns</p>
-              <p><strong>Approved:</strong> Proven track record, paid per clip</p>
-              <p><strong>Core:</strong> Top performers, priority access + bonuses</p>
+              <p><strong>Tier 1:</strong> New clippers, CPM-based pay rate</p>
+              <p><strong>Tier 2:</strong> Proven performers, higher CPM rate</p>
+              <p><strong>Tier 3:</strong> Top performers, fixed rate per clip</p>
             </div>
           </div>
           <DialogFooter>

@@ -5,8 +5,8 @@ import { db } from '@/lib/db';
 // Cache for 30 seconds
 export const revalidate = 30;
 
-import { clips, clipperProfiles, users } from '@/lib/db/schema';
-import { desc, eq } from 'drizzle-orm';
+import { clips } from '@/lib/db/schema';
+import { desc } from 'drizzle-orm';
 import { ClipsTable } from './clips-table';
 
 async function getClips() {
@@ -18,6 +18,7 @@ async function getClips() {
           user: true,
         },
       },
+      campaign: true,
     },
   });
 

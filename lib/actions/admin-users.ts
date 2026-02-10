@@ -2,8 +2,8 @@
 
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { users, clipperProfiles, clips, clipperPayouts, clients, campaigns } from '@/lib/db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { users, clipperProfiles, clips, clipperPayouts, campaigns, campaignClipperAssignments, payoutBatches, activityLog, platformSettings } from '@/lib/db/schema';
+import { eq, ne, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import bcrypt from 'bcryptjs';
 
@@ -22,7 +22,6 @@ export async function getUserPassword(userId: string) {
     return { error: 'User not found' };
   }
 
-  // Return that password exists but not the actual hash
   return {
     hasPassword: !!user.passwordHash,
     email: user.email,
@@ -50,7 +49,6 @@ export async function updateUserPassword(userId: string, newPassword: string) {
     .where(eq(users.id, userId));
 
   revalidatePath('/admin/clippers');
-  revalidatePath('/admin/clients');
   return { success: true };
 }
 
@@ -65,7 +63,6 @@ export async function updateUserEmail(userId: string, newEmail: string) {
     return { error: 'Invalid email address' };
   }
 
-  // Check if email already exists
   const existing = await db.query.users.findFirst({
     where: eq(users.email, newEmail),
   });
@@ -82,7 +79,6 @@ export async function updateUserEmail(userId: string, newEmail: string) {
     .where(eq(users.id, userId));
 
   revalidatePath('/admin/clippers');
-  revalidatePath('/admin/clients');
   return { success: true };
 }
 
@@ -93,7 +89,6 @@ export async function deleteClipperData(clipperProfileId: string) {
     return { error: 'Unauthorized' };
   }
 
-  // Get the clipper profile to find user ID
   const clipper = await db.query.clipperProfiles.findFirst({
     where: eq(clipperProfiles.id, clipperProfileId),
   });
@@ -103,55 +98,18 @@ export async function deleteClipperData(clipperProfileId: string) {
   }
 
   // Delete in order (due to foreign keys):
-  // 1. Delete clipper payouts
   await db.delete(clipperPayouts).where(eq(clipperPayouts.clipperId, clipperProfileId));
+  await db.delete(campaignClipperAssignments).where(eq(campaignClipperAssignments.clipperId, clipperProfileId));
 
-  // 2. Update clips to remove clipper reference (don't delete clips as they belong to campaigns)
+  // Update clips to remove clipper reference
   await db.update(clips)
     .set({ clipperId: null })
     .where(eq(clips.clipperId, clipperProfileId));
 
-  // 3. Delete clipper profile
   await db.delete(clipperProfiles).where(eq(clipperProfiles.id, clipperProfileId));
-
-  // 4. Delete user account
   await db.delete(users).where(eq(users.id, clipper.userId));
 
   revalidatePath('/admin/clippers');
-  return { success: true };
-}
-
-// Delete client and all their data
-export async function deleteClientData(clientId: string) {
-  const session = await auth();
-  if (!session || session.user.role !== 'admin') {
-    return { error: 'Unauthorized' };
-  }
-
-  const client = await db.query.clients.findFirst({
-    where: eq(clients.id, clientId),
-  });
-
-  if (!client) {
-    return { error: 'Client not found' };
-  }
-
-  // Delete in order:
-  // 1. Delete clips associated with this client
-  await db.delete(clips).where(eq(clips.clientId, clientId));
-
-  // 2. Delete campaigns
-  await db.delete(campaigns).where(eq(campaigns.clientId, clientId));
-
-  // 3. Delete client
-  await db.delete(clients).where(eq(clients.id, clientId));
-
-  // 4. Delete user account if exists
-  if (client.userId) {
-    await db.delete(users).where(eq(users.id, client.userId));
-  }
-
-  revalidatePath('/admin/clients');
   return { success: true };
 }
 
@@ -166,18 +124,18 @@ export async function deleteEntireDatabase(confirmationText: string) {
     return { error: 'Confirmation text does not match' };
   }
 
-  // Delete all tables in order (respecting foreign keys)
-  await db.execute(sql`TRUNCATE TABLE activity_log CASCADE`);
-  await db.execute(sql`TRUNCATE TABLE clipper_payouts CASCADE`);
-  await db.execute(sql`TRUNCATE TABLE payout_batches CASCADE`);
-  await db.execute(sql`TRUNCATE TABLE clips CASCADE`);
-  await db.execute(sql`TRUNCATE TABLE campaigns CASCADE`);
-  await db.execute(sql`TRUNCATE TABLE distribution_channels CASCADE`);
-  await db.execute(sql`TRUNCATE TABLE clients CASCADE`);
-  await db.execute(sql`TRUNCATE TABLE clipper_profiles CASCADE`);
-  await db.execute(sql`TRUNCATE TABLE platform_settings CASCADE`);
+  // Delete in order to respect foreign keys
+  await db.delete(activityLog);
+  await db.delete(clipperPayouts);
+  await db.delete(payoutBatches);
+  await db.delete(clips);
+  await db.delete(campaignClipperAssignments);
+  await db.delete(campaigns);
+  await db.delete(clipperProfiles);
+  await db.delete(platformSettings);
+
   // Keep admin user but delete all others
-  await db.execute(sql`DELETE FROM users WHERE role != 'admin'`);
+  await db.delete(users).where(ne(users.role, 'admin'));
 
   revalidatePath('/admin');
   return { success: true };

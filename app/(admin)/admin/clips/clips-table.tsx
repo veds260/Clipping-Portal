@@ -29,23 +29,24 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { MoreHorizontal, Check, X, ExternalLink, Eye, ThumbsUp, MessageCircle, Share2, Copy, Search } from 'lucide-react';
+import { MoreHorizontal, Check, X, ExternalLink, Eye, ThumbsUp, MessageCircle, Share2, Copy, CheckCircle, XCircle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { approveClip, rejectClip, updateClipMetrics, scanForDuplicates } from '@/lib/actions/clips';
+import { approveClip, rejectClip } from '@/lib/actions/clips';
 import { format } from 'date-fns';
 
 interface Clip {
   id: string;
-  title: string | null;
-  hook: string | null;
   platform: string;
   platformPostUrl: string;
+  tweetText: string | null;
+  authorUsername: string | null;
   views: number | null;
   likes: number | null;
   comments: number | null;
   shares: number | null;
   status: string | null;
   rejectionReason: string | null;
+  tagCompliance: { compliant: boolean; found: string[]; missing: string[] } | null;
   isDuplicate: boolean | null;
   duplicateOfClipId: string | null;
   createdAt: Date | null;
@@ -55,6 +56,11 @@ interface Clip {
       name: string | null;
       email: string;
     };
+  } | null;
+  campaign: {
+    id: string;
+    name: string;
+    brandName: string | null;
   } | null;
 }
 
@@ -79,12 +85,9 @@ const platformColors: Record<string, string> = {
 export function ClipsTable({ clips }: ClipsTableProps) {
   const [filter, setFilter] = useState<string>('all');
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
-  const [metricsDialogOpen, setMetricsDialogOpen] = useState(false);
   const [selectedClip, setSelectedClip] = useState<Clip | null>(null);
   const [rejectReason, setRejectReason] = useState('');
-  const [metrics, setMetrics] = useState({ views: 0, likes: 0, comments: 0, shares: 0 });
   const [isLoading, setIsLoading] = useState(false);
-  const [isScanning, setIsScanning] = useState(false);
 
   const filteredClips = filter === 'all'
     ? clips
@@ -123,42 +126,9 @@ export function ClipsTable({ clips }: ClipsTableProps) {
     }
   };
 
-  const handleUpdateMetrics = async () => {
-    if (!selectedClip) return;
-
-    setIsLoading(true);
-    const result = await updateClipMetrics({
-      clipId: selectedClip.id,
-      views: metrics.views,
-      likes: metrics.likes,
-      comments: metrics.comments,
-      shares: metrics.shares,
-    });
-    setIsLoading(false);
-
-    if (result.error) {
-      toast.error(result.error);
-    } else {
-      toast.success('Metrics updated');
-      setMetricsDialogOpen(false);
-      setSelectedClip(null);
-    }
-  };
-
   const openRejectDialog = (clip: Clip) => {
     setSelectedClip(clip);
     setRejectDialogOpen(true);
-  };
-
-  const openMetricsDialog = (clip: Clip) => {
-    setSelectedClip(clip);
-    setMetrics({
-      views: clip.views || 0,
-      likes: clip.likes || 0,
-      comments: clip.comments || 0,
-      shares: clip.shares || 0,
-    });
-    setMetricsDialogOpen(true);
   };
 
   const formatNumber = (num: number | null) => {
@@ -168,21 +138,9 @@ export function ClipsTable({ clips }: ClipsTableProps) {
     return num.toString();
   };
 
-  const handleScanDuplicates = async () => {
-    setIsScanning(true);
-    const result = await scanForDuplicates();
-    setIsScanning(false);
-
-    if (result.error) {
-      toast.error(result.error);
-    } else {
-      toast.success(`Scan complete! Found ${result.duplicatesFound} new duplicates.`);
-    }
-  };
-
   return (
     <div className="space-y-4">
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         {['all', 'pending', 'approved', 'rejected', 'paid'].map((status) => (
           <Button
             key={status}
@@ -204,17 +162,6 @@ export function ClipsTable({ clips }: ClipsTableProps) {
             Duplicates ({duplicateCount})
           </Button>
         )}
-        <div className="ml-auto">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleScanDuplicates}
-            disabled={isScanning}
-          >
-            <Search className="h-3 w-3 mr-1" />
-            {isScanning ? 'Scanning...' : 'Scan for Duplicates'}
-          </Button>
-        </div>
       </div>
 
       <div className="rounded-md border">
@@ -222,8 +169,10 @@ export function ClipsTable({ clips }: ClipsTableProps) {
           <TableHeader>
             <TableRow>
               <TableHead>Clipper</TableHead>
+              <TableHead>Campaign</TableHead>
               <TableHead>Platform</TableHead>
-              <TableHead>Hook</TableHead>
+              <TableHead>Content</TableHead>
+              <TableHead>Tag Compliance</TableHead>
               <TableHead>Views</TableHead>
               <TableHead>Engagement</TableHead>
               <TableHead>Status</TableHead>
@@ -234,7 +183,7 @@ export function ClipsTable({ clips }: ClipsTableProps) {
           <TableBody>
             {filteredClips.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                   No clips found
                 </TableCell>
               </TableRow>
@@ -244,7 +193,7 @@ export function ClipsTable({ clips }: ClipsTableProps) {
                   <TableCell>
                     <div>
                       <p className="font-medium">
-                        {clip.clipper?.user.name || 'Unknown'}
+                        {clip.clipper?.user.name || clip.authorUsername || 'Unknown'}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {clip.clipper?.user.email}
@@ -252,12 +201,24 @@ export function ClipsTable({ clips }: ClipsTableProps) {
                     </div>
                   </TableCell>
                   <TableCell>
+                    {clip.campaign ? (
+                      <div>
+                        <p className="text-sm font-medium">{clip.campaign.name}</p>
+                        {clip.campaign.brandName && (
+                          <p className="text-xs text-muted-foreground">{clip.campaign.brandName}</p>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">No campaign</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     <Badge className={platformColors[clip.platform] || ''} variant="outline">
                       {clip.platform.replace('_', ' ')}
                     </Badge>
                   </TableCell>
                   <TableCell className="max-w-[200px]">
-                    <p className="truncate text-sm">{clip.hook || clip.title || 'No hook'}</p>
+                    <p className="truncate text-sm">{clip.tweetText || 'No content'}</p>
                     <a
                       href={clip.platformPostUrl}
                       target="_blank"
@@ -266,6 +227,32 @@ export function ClipsTable({ clips }: ClipsTableProps) {
                     >
                       View post <ExternalLink className="h-3 w-3" />
                     </a>
+                  </TableCell>
+                  <TableCell>
+                    {clip.tagCompliance ? (
+                      clip.tagCompliance.compliant ? (
+                        <Badge className="bg-green-100 text-green-800" variant="outline">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Pass
+                        </Badge>
+                      ) : (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge className="bg-red-100 text-red-800" variant="outline">
+                                <XCircle className="h-3 w-3 mr-1" />
+                                Fail
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Missing: {clip.tagCompliance.missing.join(', ')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )
+                    ) : (
+                      <span className="text-xs text-muted-foreground">N/A</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
@@ -280,9 +267,6 @@ export function ClipsTable({ clips }: ClipsTableProps) {
                       </span>
                       <span className="flex items-center gap-1">
                         <MessageCircle className="h-3 w-3" /> {formatNumber(clip.comments)}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Share2 className="h-3 w-3" /> {formatNumber(clip.shares)}
                       </span>
                     </div>
                   </TableCell>
@@ -319,9 +303,6 @@ export function ClipsTable({ clips }: ClipsTableProps) {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openMetricsDialog(clip)}>
-                          Edit Metrics
-                        </DropdownMenuItem>
                         {clip.status === 'pending' && (
                           <>
                             <DropdownMenuItem onClick={() => handleApprove(clip.id)}>
@@ -381,68 +362,6 @@ export function ClipsTable({ clips }: ClipsTableProps) {
               disabled={isLoading || !rejectReason}
             >
               {isLoading ? 'Rejecting...' : 'Reject Clip'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Metrics Dialog */}
-      <Dialog open={metricsDialogOpen} onOpenChange={setMetricsDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Metrics</DialogTitle>
-            <DialogDescription>
-              Update the metrics for this clip manually.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="views">Views</Label>
-              <Input
-                id="views"
-                type="number"
-                value={metrics.views}
-                onChange={(e) => setMetrics({ ...metrics, views: parseInt(e.target.value) || 0 })}
-                className="mt-2"
-              />
-            </div>
-            <div>
-              <Label htmlFor="likes">Likes</Label>
-              <Input
-                id="likes"
-                type="number"
-                value={metrics.likes}
-                onChange={(e) => setMetrics({ ...metrics, likes: parseInt(e.target.value) || 0 })}
-                className="mt-2"
-              />
-            </div>
-            <div>
-              <Label htmlFor="comments">Comments</Label>
-              <Input
-                id="comments"
-                type="number"
-                value={metrics.comments}
-                onChange={(e) => setMetrics({ ...metrics, comments: parseInt(e.target.value) || 0 })}
-                className="mt-2"
-              />
-            </div>
-            <div>
-              <Label htmlFor="shares">Shares</Label>
-              <Input
-                id="shares"
-                type="number"
-                value={metrics.shares}
-                onChange={(e) => setMetrics({ ...metrics, shares: parseInt(e.target.value) || 0 })}
-                className="mt-2"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setMetricsDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleUpdateMetrics} disabled={isLoading}>
-              {isLoading ? 'Saving...' : 'Save Metrics'}
             </Button>
           </DialogFooter>
         </DialogContent>

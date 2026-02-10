@@ -28,17 +28,16 @@ interface Campaign {
   id: string;
   name: string;
   description: string | null;
-  sourceContentType: string | null;
+  brandName: string | null;
+  brandLogoUrl: string | null;
   startDate: Date | null;
   endDate: Date | null;
   budgetCap: string | null;
-  payRatePer1k: string | null;
   status: string | null;
-  tierRequirement: string | null;
+  tier1CpmRate: string | null;
+  tier2CpmRate: string | null;
+  tier3FixedRate: string | null;
   createdAt: Date | null;
-  clientId: string | null;
-  clientName: string | null;
-  clientBrandName: string | null;
   clipsCount: number;
   totalViews: number;
   totalPayout: number;
@@ -53,12 +52,6 @@ const statusColors: Record<string, string> = {
   active: 'bg-green-100 text-green-800',
   paused: 'bg-yellow-100 text-yellow-800',
   completed: 'bg-blue-100 text-blue-800',
-};
-
-const tierColors: Record<string, string> = {
-  entry: 'bg-gray-100 text-gray-800',
-  approved: 'bg-blue-100 text-blue-800',
-  core: 'bg-purple-100 text-purple-800',
 };
 
 export function CampaignsTable({ campaigns }: CampaignsTableProps) {
@@ -130,9 +123,9 @@ export function CampaignsTable({ campaigns }: CampaignsTableProps) {
           <TableHeader>
             <TableRow>
               <TableHead>Campaign</TableHead>
-              <TableHead>Client</TableHead>
+              <TableHead>Brand</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Tier</TableHead>
+              <TableHead>Tier Rates</TableHead>
               <TableHead>Budget</TableHead>
               <TableHead>Clips</TableHead>
               <TableHead>Views</TableHead>
@@ -152,21 +145,18 @@ export function CampaignsTable({ campaigns }: CampaignsTableProps) {
                 <TableRow key={campaign.id}>
                   <TableCell>
                     <div>
-                      <p className="font-medium">{campaign.name}</p>
-                      {campaign.sourceContentType && (
-                        <p className="text-xs text-muted-foreground capitalize">
-                          {campaign.sourceContentType}
+                      <Link href={`/admin/campaigns/${campaign.id}`} className="font-medium hover:underline">
+                        {campaign.name}
+                      </Link>
+                      {campaign.description && (
+                        <p className="text-xs text-muted-foreground truncate max-w-[200px]">
+                          {campaign.description}
                         </p>
                       )}
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div>
-                      <p className="font-medium">{campaign.clientName || 'No client'}</p>
-                      {campaign.clientBrandName && (
-                        <p className="text-xs text-muted-foreground">{campaign.clientBrandName}</p>
-                      )}
-                    </div>
+                    <span className="text-sm">{campaign.brandName || '-'}</span>
                   </TableCell>
                   <TableCell>
                     <Badge
@@ -177,26 +167,14 @@ export function CampaignsTable({ campaigns }: CampaignsTableProps) {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {campaign.tierRequirement ? (
-                      <Badge
-                        className={tierColors[campaign.tierRequirement]}
-                        variant="outline"
-                      >
-                        {campaign.tierRequirement}
-                      </Badge>
-                    ) : (
-                      <span className="text-muted-foreground">Any</span>
-                    )}
+                    <div className="text-xs space-y-0.5">
+                      <p>T1: ${parseFloat(campaign.tier1CpmRate || '0').toFixed(2)}/1K</p>
+                      <p>T2: ${parseFloat(campaign.tier2CpmRate || '0').toFixed(2)}/1K</p>
+                      <p>T3: ${parseFloat(campaign.tier3FixedRate || '0').toFixed(2)} fixed</p>
+                    </div>
                   </TableCell>
                   <TableCell>
-                    <div>
-                      {campaign.budgetCap ? formatCurrency(campaign.budgetCap) : '-'}
-                      {campaign.payRatePer1k && (
-                        <p className="text-xs text-muted-foreground">
-                          ${parseFloat(campaign.payRatePer1k).toFixed(2)}/1K
-                        </p>
-                      )}
-                    </div>
+                    {campaign.budgetCap ? formatCurrency(campaign.budgetCap) : '-'}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
@@ -233,7 +211,7 @@ export function CampaignsTable({ campaigns }: CampaignsTableProps) {
                         <Link href={`/admin/campaigns/${campaign.id}`}>
                           <DropdownMenuItem>
                             <Film className="h-4 w-4 mr-2" />
-                            View Clips
+                            View Details
                           </DropdownMenuItem>
                         </Link>
                         <Link href={`/admin/campaigns/${campaign.id}/edit`}>

@@ -4,12 +4,11 @@ import { db } from '@/lib/db';
 
 // Cache for 30 seconds
 export const revalidate = 30;
-import { clipperProfiles, clips, clipperPayouts, platformSettings } from '@/lib/db/schema';
+import { clipperProfiles, clips, clipperPayouts, campaignClipperAssignments } from '@/lib/db/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Film, Eye, DollarSign, TrendingUp, Award } from 'lucide-react';
+import { Film, Eye, DollarSign, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
@@ -20,44 +19,65 @@ async function getClipperData(userId: string) {
 
   if (!profile) return null;
 
-  // Get recent clips
+  // Get recent clips with campaign info
   const recentClips = await db.query.clips.findMany({
     where: eq(clips.clipperId, profile.id),
     orderBy: [desc(clips.createdAt)],
     limit: 5,
+    with: {
+      campaign: true,
+    },
   });
 
-  // Get pending earnings
+  // Get campaign assignments with campaign details and clip counts
+  const assignments = await db.query.campaignClipperAssignments.findMany({
+    where: eq(campaignClipperAssignments.clipperId, profile.id),
+    with: {
+      campaign: true,
+    },
+  });
+
+  // For each assignment, get clip count and earned amount
+  const campaignData = await Promise.all(
+    assignments.map(async (assignment) => {
+      const campaignClips = await db.query.clips.findMany({
+        where: and(
+          eq(clips.clipperId, profile.id),
+          eq(clips.campaignId, assignment.campaignId),
+        ),
+      });
+
+      const approvedClips = campaignClips.filter(
+        (c) => c.status === 'approved' || c.status === 'paid'
+      );
+
+      const earnedAmount = campaignClips
+        .filter((c) => c.status === 'approved' || c.status === 'paid')
+        .reduce((sum, c) => sum + parseFloat(c.payoutAmount || '0'), 0);
+
+      return {
+        id: assignment.id,
+        campaign: assignment.campaign,
+        assignedTier: assignment.assignedTier,
+        clipCount: campaignClips.length,
+        approvedCount: approvedClips.length,
+        earnedAmount,
+      };
+    })
+  );
+
+  // Get pending earnings (only from approved payout batches)
   const pendingEarningsResult = await db
     .select({ sum: sql<number>`coalesce(sum(amount), 0)` })
     .from(clipperPayouts)
     .where(and(eq(clipperPayouts.clipperId, profile.id), eq(clipperPayouts.status, 'pending')));
   const pendingEarnings = pendingEarningsResult[0]?.sum || 0;
 
-  // Get tier settings for progress calculation
-  const tierSettings = await db.query.platformSettings.findFirst({
-    where: eq(platformSettings.key, 'tier_settings'),
-  });
-
-  const settings = tierSettings?.value as {
-    tier_approved_min_clips: number;
-    tier_core_min_views: number;
-    tier_core_min_clips: number;
-    tier_approved_min_avg_views: number;
-    tier_core_min_avg_views: number;
-  } || {
-    tier_approved_min_clips: 10,
-    tier_core_min_views: 500000,
-    tier_core_min_clips: 50,
-    tier_approved_min_avg_views: 1000,
-    tier_core_min_avg_views: 5000,
-  };
-
   return {
     profile,
     recentClips,
     pendingEarnings,
-    tierSettings: settings,
+    campaignData,
   };
 }
 
@@ -77,16 +97,22 @@ function formatCurrency(num: number | string | null): string {
 }
 
 const tierColors: Record<string, string> = {
-  entry: 'bg-gray-100 text-gray-800',
-  approved: 'bg-blue-100 text-blue-800',
-  core: 'bg-purple-100 text-purple-800',
+  tier1: 'bg-emerald-900/30 text-emerald-400 border-emerald-700',
+  tier2: 'bg-blue-900/30 text-blue-400 border-blue-700',
+  tier3: 'bg-purple-900/30 text-purple-400 border-purple-700',
+};
+
+const tierLabels: Record<string, string> = {
+  tier1: 'Tier 1',
+  tier2: 'Tier 2',
+  tier3: 'Tier 3',
 };
 
 const statusColors: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  approved: 'bg-green-100 text-green-800',
-  rejected: 'bg-red-100 text-red-800',
-  paid: 'bg-blue-100 text-blue-800',
+  pending: 'bg-yellow-900/30 text-yellow-400 border-yellow-700',
+  approved: 'bg-green-900/30 text-green-400 border-green-700',
+  rejected: 'bg-red-900/30 text-red-400 border-red-700',
+  paid: 'bg-blue-900/30 text-blue-400 border-blue-700',
 };
 
 export default async function ClipperDashboard() {
@@ -102,7 +128,7 @@ export default async function ClipperDashboard() {
     return (
       <div className="p-8">
         <div className="text-center py-16">
-          <h1 className="text-2xl font-bold mb-4">Welcome to Compound Clipper!</h1>
+          <h1 className="text-2xl font-bold mb-4">Welcome to Web3Clipper!</h1>
           <p className="text-muted-foreground mb-8">
             Your clipper profile is being set up. Please wait for admin approval.
           </p>
@@ -111,33 +137,14 @@ export default async function ClipperDashboard() {
     );
   }
 
-  const { profile, recentClips, pendingEarnings, tierSettings } = data;
-
-  // Calculate tier progress
-  let tierProgress = 0;
-  let nextTier = '';
-  let progressLabel = '';
-
-  if (profile.tier === 'entry') {
-    nextTier = 'Approved';
-    tierProgress = Math.min(100, ((profile.clipsApproved || 0) / tierSettings.tier_approved_min_clips) * 100);
-    progressLabel = `${profile.clipsApproved || 0} / ${tierSettings.tier_approved_min_clips} approved clips`;
-  } else if (profile.tier === 'approved') {
-    nextTier = 'Core';
-    tierProgress = Math.min(100, ((profile.totalViews || 0) / tierSettings.tier_core_min_views) * 100);
-    progressLabel = `${formatNumber(profile.totalViews)} / ${formatNumber(tierSettings.tier_core_min_views)} total views`;
-  } else {
-    nextTier = '';
-    tierProgress = 100;
-    progressLabel = 'Maximum tier reached!';
-  }
+  const { profile, recentClips, pendingEarnings, campaignData } = data;
 
   return (
     <div className="p-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold">Welcome back, {session.user.name?.split(' ')[0] || 'Clipper'}!</h1>
+        <h1 className="text-3xl font-bold">Welcome to Web3Clipper!</h1>
         <p className="text-muted-foreground">
-          Here&apos;s an overview of your clipping performance
+          Hey {session.user.name?.split(' ')[0] || 'Clipper'}, here&apos;s your clipping overview
         </p>
       </div>
 
@@ -190,52 +197,55 @@ export default async function ClipperDashboard() {
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(pendingEarnings)}</div>
             <p className="text-xs text-muted-foreground">
-              {formatCurrency(profile.totalEarnings)} total earned
+              From approved payout batches
             </p>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {/* Tier Progress */}
+        {/* Your Campaigns */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Award className="h-5 w-5" />
-              Tier Progress
-            </CardTitle>
+            <CardTitle>Your Campaigns</CardTitle>
             <CardDescription>
-              Your current standing and progress
+              Campaigns you are assigned to
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span>Current Tier</span>
-                <Badge className={tierColors[profile.tier || 'entry']} variant="outline">
-                  {profile.tier || 'entry'}
-                </Badge>
-              </div>
-
-              {nextTier && (
-                <>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Progress to {nextTier}</span>
-                      <span>{Math.round(tierProgress)}%</span>
-                    </div>
-                    <Progress value={tierProgress} />
-                    <p className="text-xs text-muted-foreground">{progressLabel}</p>
-                  </div>
-                </>
-              )}
-
-              {!nextTier && (
-                <p className="text-sm text-muted-foreground">
-                  Congratulations! You&apos;ve reached the highest tier.
+            {campaignData.length === 0 ? (
+              <div className="text-center py-4">
+                <p className="text-muted-foreground mb-2">No campaign assignments yet</p>
+                <p className="text-xs text-muted-foreground">
+                  Admins will assign you to campaigns when available.
                 </p>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {campaignData.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between border rounded-lg p-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="text-sm font-medium truncate">
+                          {item.campaign.name}
+                        </p>
+                        <Badge className={tierColors[item.assignedTier]} variant="outline">
+                          {tierLabels[item.assignedTier]}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {item.clipCount} clips submitted &middot; {item.approvedCount} approved
+                      </p>
+                    </div>
+                    {item.earnedAmount > 0 && (
+                      <span className="text-sm font-medium text-green-400">
+                        {formatCurrency(item.earnedAmount)}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -261,10 +271,10 @@ export default async function ClipperDashboard() {
                   <div key={clip.id} className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">
-                        {clip.hook || clip.title || 'Untitled clip'}
+                        {clip.campaign?.name || 'No campaign'}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {formatNumber(clip.views)} views on {clip.platform.replace('_', ' ')}
+                        {formatNumber(clip.views)} views
                       </p>
                     </div>
                     <Badge className={statusColors[clip.status || 'pending']} variant="outline">

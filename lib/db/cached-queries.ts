@@ -3,75 +3,28 @@ import { db } from './index';
 import {
   clips,
   clipperProfiles,
-  clients,
   campaigns,
+  campaignClipperAssignments,
   clipperPayouts,
   platformSettings,
   users
 } from './schema';
-import { eq, desc, sql, and, gte } from 'drizzle-orm';
+import { eq, desc, sql, and } from 'drizzle-orm';
 
 /**
  * Cached database queries using React's cache() function.
  * These queries are automatically deduplicated during the same server render,
  * meaning if multiple components request the same data, it's only fetched once.
- *
- * Best practices:
- * - Use these for read-only queries that may be called multiple times per render
- * - Cache is invalidated on each new server request
- * - For mutations, use regular db calls and revalidatePath/revalidateTag
  */
 
 // ============================================
-// Platform Settings (rarely change, safe to cache)
+// Platform Settings
 // ============================================
 
 export const getCachedPlatformSettings = cache(async (key: string) => {
   return db.query.platformSettings.findFirst({
     where: eq(platformSettings.key, key),
   });
-});
-
-export const getCachedTierSettings = cache(async () => {
-  const settings = await getCachedPlatformSettings('tier_settings');
-  return settings?.value as {
-    tier_approved_min_clips: number;
-    tier_core_min_views: number;
-    tier_core_min_clips: number;
-    tier_approved_min_avg_views: number;
-    tier_core_min_avg_views: number;
-    entry_benefits: string;
-    approved_benefits: string;
-    core_benefits: string;
-    entry_pay_rate: number;
-    approved_pay_rate: number;
-    core_pay_rate: number;
-  } || {
-    tier_approved_min_clips: 10,
-    tier_core_min_views: 500000,
-    tier_core_min_clips: 50,
-    tier_approved_min_avg_views: 1000,
-    tier_core_min_avg_views: 5000,
-    entry_benefits: '',
-    approved_benefits: '',
-    core_benefits: '',
-    entry_pay_rate: 1.0,
-    approved_pay_rate: 1.5,
-    core_pay_rate: 2.0,
-  };
-});
-
-export const getCachedPayoutSettings = cache(async () => {
-  const settings = await getCachedPlatformSettings('payout_settings');
-  return settings?.value as {
-    minimum_views_for_payout: number;
-    bonus_threshold_views: number;
-    bonus_multiplier: number;
-  } || {
-    minimum_views_for_payout: 1000,
-    bonus_threshold_views: 100000,
-    bonus_multiplier: 1.5,
-  };
 });
 
 // ============================================
@@ -104,22 +57,6 @@ export const getCachedClipperById = cache(async (clipperId: string) => {
 });
 
 // ============================================
-// Client Queries
-// ============================================
-
-export const getCachedClientByUserId = cache(async (userId: string) => {
-  return db.query.clients.findFirst({
-    where: eq(clients.userId, userId),
-  });
-});
-
-export const getCachedClientById = cache(async (clientId: string) => {
-  return db.query.clients.findFirst({
-    where: eq(clients.id, clientId),
-  });
-});
-
-// ============================================
 // Campaign Queries
 // ============================================
 
@@ -127,7 +64,15 @@ export const getCachedCampaignById = cache(async (campaignId: string) => {
   return db.query.campaigns.findFirst({
     where: eq(campaigns.id, campaignId),
     with: {
-      client: true,
+      assignments: {
+        with: {
+          clipper: {
+            with: {
+              user: true,
+            },
+          },
+        },
+      },
     },
   });
 });
@@ -136,9 +81,28 @@ export const getCachedActiveCampaigns = cache(async () => {
   return db.query.campaigns.findMany({
     where: eq(campaigns.status, 'active'),
     orderBy: [desc(campaigns.createdAt)],
+  });
+});
+
+// ============================================
+// Campaign Assignment Queries
+// ============================================
+
+export const getCachedClipperCampaigns = cache(async (clipperId: string) => {
+  return db.query.campaignClipperAssignments.findMany({
+    where: eq(campaignClipperAssignments.clipperId, clipperId),
     with: {
-      client: true,
+      campaign: true,
     },
+  });
+});
+
+export const getCachedCampaignAssignment = cache(async (campaignId: string, clipperId: string) => {
+  return db.query.campaignClipperAssignments.findFirst({
+    where: and(
+      eq(campaignClipperAssignments.campaignId, campaignId),
+      eq(campaignClipperAssignments.clipperId, clipperId),
+    ),
   });
 });
 
@@ -175,7 +139,7 @@ export const getCachedClipperPendingEarnings = cache(async (clipperId: string) =
 });
 
 // ============================================
-// Paginated Queries (for large datasets)
+// Paginated Queries
 // ============================================
 
 export interface PaginationParams {
@@ -191,29 +155,23 @@ export interface PaginatedResult<T> {
   totalPages: number;
 }
 
-/**
- * Get paginated clips with total count
- * Uses cursor-based pagination internally for better performance
- */
 export const getPaginatedClips = cache(async (
   params: PaginationParams & {
     status?: 'pending' | 'approved' | 'rejected' | 'paid';
     clipperId?: string;
-    clientId?: string;
+    campaignId?: string;
   }
 ): Promise<PaginatedResult<typeof clips.$inferSelect>> => {
-  const { page, pageSize, status, clipperId, clientId } = params;
+  const { page, pageSize, status, clipperId, campaignId } = params;
   const offset = (page - 1) * pageSize;
 
-  // Build where conditions
   const conditions = [];
   if (status) conditions.push(eq(clips.status, status));
   if (clipperId) conditions.push(eq(clips.clipperId, clipperId));
-  if (clientId) conditions.push(eq(clips.clientId, clientId));
+  if (campaignId) conditions.push(eq(clips.campaignId, campaignId));
 
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-  // Execute count and data queries in parallel
   const [countResult, data] = await Promise.all([
     db.select({ count: sql<number>`count(*)` })
       .from(clips)
@@ -229,7 +187,6 @@ export const getPaginatedClips = cache(async (
             user: true,
           },
         },
-        client: true,
         campaign: true,
       },
     }),
@@ -246,13 +203,10 @@ export const getPaginatedClips = cache(async (
   };
 });
 
-/**
- * Get paginated clippers with total count
- */
 export const getPaginatedClippers = cache(async (
   params: PaginationParams & {
     status?: 'active' | 'suspended' | 'pending';
-    tier?: 'entry' | 'approved' | 'core';
+    tier?: 'tier1' | 'tier2' | 'tier3';
   }
 ): Promise<PaginatedResult<typeof clipperProfiles.$inferSelect & { user: typeof users.$inferSelect }>> => {
   const { page, pageSize, status, tier } = params;
