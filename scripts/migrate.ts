@@ -242,6 +242,39 @@ async function migrate() {
   await sql.unsafe(`ALTER TABLE clipper_profiles ALTER COLUMN tier SET DEFAULT 'unassigned'`);
   console.log('  Updated default tier to unassigned');
 
+  // ============================================================
+  // 10. Ensure admin user exists
+  // ============================================================
+  console.log('Ensuring admin user...');
+
+  const adminEmail = process.env.ADMIN_EMAIL;
+  const adminPassword = process.env.ADMIN_PASSWORD;
+
+  if (adminEmail && adminPassword) {
+    const bcrypt = await import('bcryptjs');
+    const passwordHash = await bcrypt.default.hash(adminPassword, 12);
+
+    const existingAdmin = await sql`
+      SELECT id FROM users WHERE role = 'admin' LIMIT 1
+    `;
+
+    if (existingAdmin.length > 0) {
+      await sql`
+        UPDATE users SET email = ${adminEmail}, password_hash = ${passwordHash}, updated_at = NOW()
+        WHERE id = ${existingAdmin[0].id}
+      `;
+      console.log(`  Admin user updated: ${adminEmail}`);
+    } else {
+      await sql`
+        INSERT INTO users (email, password_hash, name, role)
+        VALUES (${adminEmail}, ${passwordHash}, 'Admin', 'admin')
+      `;
+      console.log(`  Admin user created: ${adminEmail}`);
+    }
+  } else {
+    console.log('  No ADMIN_EMAIL/ADMIN_PASSWORD configured, skipping admin setup');
+  }
+
   console.log('Migration completed successfully!');
   await sql.end();
   process.exit(0);

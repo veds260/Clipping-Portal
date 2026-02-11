@@ -1,10 +1,4 @@
 export async function register() {
-  // Only run in Node.js runtime (not Edge)
-  if (process.env.NEXT_RUNTIME === 'nodejs') {
-    const { runStartupMigrations } = await import('@/lib/startup-migrate');
-    await runStartupMigrations();
-
-    const { ensureAdminUser } = await import('@/lib/init-admin');
-    await ensureAdminUser();
-  }
+  // Migrations and admin setup are handled by the start script
+  // (drizzle-kit push + scripts/migrate.ts) to avoid DB connection conflicts
 }
