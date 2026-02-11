@@ -21,6 +21,14 @@ export async function runStartupMigrations() {
       END $$;
     `);
 
+    // Add announcement column if missing
+    await db.execute(sql`
+      DO $$ BEGIN
+        ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS announcement TEXT;
+      EXCEPTION WHEN duplicate_column THEN NULL;
+      END $$;
+    `);
+
     // Add max_clips_per_clipper column if missing
     await db.execute(sql`
       DO $$ BEGIN

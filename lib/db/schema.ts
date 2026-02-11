@@ -87,6 +87,9 @@ export const campaigns = pgTable('campaigns', {
   contentGuidelines: text('content_guidelines'),
   notionUrl: text('notion_url'),
 
+  // Clipper-facing announcement (shown as popup)
+  announcement: text('announcement'),
+
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => [

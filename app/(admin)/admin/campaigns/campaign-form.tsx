@@ -41,6 +41,7 @@ interface CampaignFormProps {
     tier2MaxPerCampaign: string | null;
     tier3MaxPerCampaign: string | null;
     maxClipsPerClipper: number | null;
+    announcement: string | null;
     requiredTags: string[] | null;
   };
 }
@@ -76,6 +77,9 @@ export function CampaignForm({ campaign }: CampaignFormProps) {
 
     // Clip limit
     maxClipsPerClipper: campaign?.maxClipsPerClipper || 0,
+
+    // Announcement
+    announcement: campaign?.announcement || '',
 
     // Tags
     requiredTags: (campaign?.requiredTags as string[]) || [],
@@ -123,6 +127,7 @@ export function CampaignForm({ campaign }: CampaignFormProps) {
       tier2MaxPerCampaign: formData.tier2MaxPerCampaign || undefined,
       tier3MaxPerCampaign: formData.tier3MaxPerCampaign || undefined,
       maxClipsPerClipper: formData.maxClipsPerClipper,
+      announcement: formData.announcement || null,
       requiredTags: formData.requiredTags,
     };
 
@@ -459,6 +464,25 @@ export function CampaignForm({ campaign }: CampaignFormProps) {
                 No required tags set. Clips will not be checked for tag compliance.
               </p>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Announcement */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Clipper Announcement</CardTitle>
+            <CardDescription>
+              Shown as a popup to assigned clippers on their dashboard. Leave empty for no popup.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Textarea
+              id="announcement"
+              value={formData.announcement}
+              onChange={(e) => setFormData({ ...formData, announcement: e.target.value })}
+              placeholder="e.g., Campaign runs for 10 days or until budget is exhausted. Anyone looking botted will be disqualified."
+              rows={3}
+            />
           </CardContent>
         </Card>
 

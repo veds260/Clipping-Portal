@@ -18,6 +18,7 @@ const campaignSchema = z.object({
   status: z.enum(['draft', 'active', 'paused', 'completed']).optional(),
   contentGuidelines: z.string().nullable().optional(),
   notionUrl: z.string().nullable().optional(),
+  announcement: z.string().nullable().optional(),
 
   // Tier rates
   tier1CpmRate: z.number().min(0).default(0),
@@ -60,6 +61,7 @@ export async function createCampaign(data: CampaignFormData) {
       status: validated.status || 'draft',
       contentGuidelines: validated.contentGuidelines,
       notionUrl: validated.notionUrl,
+      announcement: validated.announcement,
       tier1CpmRate: validated.tier1CpmRate.toString(),
       tier2CpmRate: validated.tier2CpmRate.toString(),
       tier3FixedRate: validated.tier3FixedRate.toString(),
@@ -105,6 +107,7 @@ export async function updateCampaign(campaignId: string, data: CampaignFormData)
         status: validated.status,
         contentGuidelines: validated.contentGuidelines || null,
         notionUrl: validated.notionUrl || null,
+        announcement: validated.announcement || null,
         tier1CpmRate: validated.tier1CpmRate.toString(),
         tier2CpmRate: validated.tier2CpmRate.toString(),
         tier3FixedRate: validated.tier3FixedRate.toString(),

@@ -97,6 +97,7 @@ async function migrate() {
     ['required_tags', "JSONB DEFAULT '[]'::jsonb"],
     ['content_guidelines', 'TEXT'],
     ['notion_url', 'TEXT'],
+    ['announcement', 'TEXT'],
     ['max_clips_per_clipper', 'INTEGER DEFAULT 0'],
   ];
 

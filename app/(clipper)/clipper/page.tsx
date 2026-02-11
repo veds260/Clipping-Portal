@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Film, Eye, DollarSign, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { CampaignAnnouncements } from './campaign-announcements';
 
 async function getClipperData(userId: string) {
   const profile = await db.query.clipperProfiles.findFirst({
@@ -73,11 +74,21 @@ async function getClipperData(userId: string) {
     .where(and(eq(clipperPayouts.clipperId, profile.id), eq(clipperPayouts.status, 'pending')));
   const pendingEarnings = pendingEarningsResult[0]?.sum || 0;
 
+  // Collect announcements from active campaigns
+  const announcements = campaignData
+    .filter((item) => item.campaign.status === 'active' && item.campaign.announcement)
+    .map((item) => ({
+      campaignId: item.campaign.id,
+      campaignName: item.campaign.name,
+      announcement: item.campaign.announcement!,
+    }));
+
   return {
     profile,
     recentClips,
     pendingEarnings,
     campaignData,
+    announcements,
   };
 }
 
@@ -125,10 +136,11 @@ export default async function ClipperDashboard() {
     );
   }
 
-  const { profile, recentClips, pendingEarnings, campaignData } = data;
+  const { profile, recentClips, pendingEarnings, campaignData, announcements } = data;
 
   return (
     <div className="p-8">
+      <CampaignAnnouncements announcements={announcements} />
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Welcome to Web3 Clipping!</h1>
         <p className="text-muted-foreground">
