@@ -20,7 +20,14 @@ const registerSchema = z.object({
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { email, password, name, twitterHandle, telegramHandle, walletAddress, walletType } = registerSchema.parse(body);
+    const parsed = registerSchema.parse(body);
+    const email = parsed.email;
+    const password = parsed.password;
+    const name = parsed.name;
+    const twitterHandle = parsed.twitterHandle?.replace(/^@/, '') || undefined;
+    const telegramHandle = parsed.telegramHandle?.replace(/^@/, '') || undefined;
+    const walletAddress = parsed.walletAddress;
+    const walletType = parsed.walletType;
 
     // Validate wallet address format
     if (walletAddress && walletType) {

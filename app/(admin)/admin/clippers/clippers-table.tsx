@@ -342,7 +342,24 @@ export function ClippersTable({ clippers, campaigns = [] }: ClippersTableProps) 
                         <p className="font-medium">{clipper.user.name || 'Unnamed'}</p>
                         <p className="text-xs text-muted-foreground">{clipper.user.email}</p>
                         {clipper.user.twitterHandle && (
-                          <p className="text-xs text-blue-500">@{clipper.user.twitterHandle}</p>
+                          <a
+                            href={`https://x.com/${clipper.user.twitterHandle.replace(/^@/, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-500 hover:underline"
+                          >
+                            @{clipper.user.twitterHandle.replace(/^@/, '')}
+                          </a>
+                        )}
+                        {clipper.telegramHandle && (
+                          <a
+                            href={`https://t.me/${clipper.telegramHandle.replace(/^@/, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-purple-500 hover:underline"
+                          >
+                            TG: @{clipper.telegramHandle.replace(/^@/, '')}
+                          </a>
                         )}
                         {clipper.walletAddress && (
                           <p className="text-xs text-muted-foreground font-mono flex items-center gap-1">
