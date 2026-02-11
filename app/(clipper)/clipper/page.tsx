@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Film, Eye, DollarSign, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { ExternalLink } from 'lucide-react';
 import { CampaignAnnouncements } from './campaign-announcements';
 
 async function getClipperData(userId: string) {
@@ -237,13 +238,41 @@ export default async function ClipperDashboard() {
                     <p className="text-xs text-muted-foreground mb-1">
                       {item.clipCount} clips submitted &middot; {item.approvedCount} approved
                     </p>
-                    <p className="text-xs font-medium text-primary">
-                      {item.assignedTier === 'tier3'
-                        ? `$${parseFloat(item.campaign.tier3FixedRate || '0').toFixed(2)} per clip`
-                        : item.assignedTier === 'tier2'
-                          ? `$${parseFloat(item.campaign.tier2CpmRate || '0').toFixed(2)} per 1K views`
-                          : `$${parseFloat(item.campaign.tier1CpmRate || '0').toFixed(2)} per 1K views`}
-                    </p>
+                    <div className="text-xs font-medium text-primary">
+                      {item.assignedTier === 'tier3' ? (
+                        <>
+                          <span>${parseFloat(item.campaign.tier3FixedRate || '0').toFixed(2)} per approved clip</span>
+                          {item.campaign.tier3MaxPerCampaign && (
+                            <span className="text-muted-foreground font-normal"> &middot; Max ${parseFloat(item.campaign.tier3MaxPerCampaign).toFixed(2)}/campaign</span>
+                          )}
+                        </>
+                      ) : item.assignedTier === 'tier2' ? (
+                        <>
+                          <span>${parseFloat(item.campaign.tier2CpmRate || '0').toFixed(2)} per 1K views</span>
+                          {item.campaign.tier2MaxPerClip && (
+                            <span className="text-muted-foreground font-normal"> &middot; Cap ${parseFloat(item.campaign.tier2MaxPerClip).toFixed(2)}/clip</span>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <span>${parseFloat(item.campaign.tier1CpmRate || '0').toFixed(2)} per 1K views</span>
+                          {item.campaign.tier1MaxPerClip && (
+                            <span className="text-muted-foreground font-normal"> &middot; Cap ${parseFloat(item.campaign.tier1MaxPerClip).toFixed(2)}/clip</span>
+                          )}
+                        </>
+                      )}
+                    </div>
+                    {item.campaign.notionUrl && (
+                      <a
+                        href={item.campaign.notionUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 mt-2 p-2 rounded-md border bg-muted/50 hover:bg-muted transition-colors text-xs"
+                      >
+                        <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                        <span className="font-medium">Guidelines & Assets</span>
+                      </a>
+                    )}
                   </div>
                 ))}
               </div>

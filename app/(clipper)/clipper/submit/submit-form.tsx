@@ -17,7 +17,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { submitClip, checkDuplicateUrl } from '@/lib/actions/clips';
-import { Info, AlertTriangle, Loader2, Eye, Heart, Repeat2, MessageCircle, CheckCircle2, XCircle } from 'lucide-react';
+import { Info, AlertTriangle, Loader2, Eye, Heart, Repeat2, MessageCircle, CheckCircle2, XCircle, ExternalLink } from 'lucide-react';
 
 interface Campaign {
   id: string;
@@ -30,6 +30,7 @@ interface Campaign {
   tier1CpmRate: string | null;
   tier2CpmRate: string | null;
   tier3FixedRate: string | null;
+  notionUrl: string | null;
 }
 
 interface SubmitClipFormProps {
@@ -286,6 +287,17 @@ export function SubmitClipForm({ campaigns }: SubmitClipFormProps) {
                         ? `$${parseFloat(selected.tier2CpmRate || '0').toFixed(2)} per 1K views`
                         : `$${parseFloat(selected.tier1CpmRate || '0').toFixed(2)} per 1K views`}
                   </p>
+                  {selected.notionUrl && (
+                    <a
+                      href={selected.notionUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 p-2 rounded-md border bg-muted/50 hover:bg-muted transition-colors text-sm"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="font-medium">View Guidelines & Assets</span>
+                    </a>
+                  )}
                   {selected.maxClipsPerClipper > 0 && (() => {
                     const remaining = selected.maxClipsPerClipper - selected.submittedClips;
                     return (
