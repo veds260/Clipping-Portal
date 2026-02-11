@@ -38,7 +38,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { MoreHorizontal, Eye, Film, DollarSign, TrendingUp, Key, Trash2, Mail, Wallet, Megaphone, Plus } from 'lucide-react';
+import { MoreHorizontal, Eye, Film, DollarSign, TrendingUp, Key, Trash2, Mail, Wallet, Megaphone, Plus, Copy } from 'lucide-react';
 import { updateClipperTier, updateClipperStatus, updateClipperNotes } from '@/lib/actions/clippers';
 import { updateUserPassword, updateUserEmail, deleteClipperData } from '@/lib/actions/admin-users';
 import { assignClipperToCampaign } from '@/lib/actions/campaign-assignments';
@@ -349,6 +349,15 @@ export function ClippersTable({ clippers, campaigns = [] }: ClippersTableProps) 
                             <Wallet className="h-3 w-3" />
                             <span className="text-xs font-medium text-foreground/70">{clipper.walletType || 'ETH'}</span>
                             {clipper.walletAddress.slice(0, 6)}...{clipper.walletAddress.slice(-4)}
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(clipper.walletAddress!);
+                                toast.success('Wallet address copied');
+                              }}
+                              className="hover:text-foreground"
+                            >
+                              <Copy className="h-3 w-3" />
+                            </button>
                           </p>
                         )}
                       </div>

@@ -29,7 +29,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { DollarSign, Users, Film, Calendar, Check, Download, Trash2 } from 'lucide-react';
+import { DollarSign, Users, Film, Calendar, Check, Download, Trash2, Copy } from 'lucide-react';
 import { generatePayoutBatch, markPayoutAsPaid, markBatchAsPaid, deleteBatch } from '@/lib/actions/payouts';
 import { format, startOfWeek, endOfWeek, subWeeks } from 'date-fns';
 
@@ -44,6 +44,8 @@ interface ClipperPayout {
   clipper: {
     id: string;
     telegramHandle: string | null;
+    walletAddress: string | null;
+    walletType: string | null;
     user: {
       name: string | null;
       email: string;
@@ -139,10 +141,12 @@ export function PayoutsManager({ batches }: PayoutsManagerProps) {
   };
 
   const exportBatchCSV = (batch: PayoutBatch) => {
-    const headers = ['Name', 'Email', 'Telegram', 'Views', 'Clips', 'Amount', 'Bonus', 'Status'];
+    const headers = ['Name', 'Email', 'Wallet Type', 'Wallet Address', 'Telegram', 'Views', 'Clips', 'Amount', 'Bonus', 'Status'];
     const rows = batch.clipperPayouts.map(p => [
       p.clipper?.user.name || 'Unknown',
       p.clipper?.user.email || '',
+      p.clipper?.walletType || '',
+      p.clipper?.walletAddress || '',
       p.clipper?.telegramHandle || '',
       p.totalViews?.toString() || '0',
       p.clipsCount?.toString() || '0',
@@ -287,7 +291,7 @@ export function PayoutsManager({ batches }: PayoutsManagerProps) {
                         <TableHeader>
                           <TableRow>
                             <TableHead>Clipper</TableHead>
-                            <TableHead>Telegram</TableHead>
+                            <TableHead>Wallet</TableHead>
                             <TableHead>Views</TableHead>
                             <TableHead>Clips</TableHead>
                             <TableHead>Amount</TableHead>
@@ -308,7 +312,27 @@ export function PayoutsManager({ batches }: PayoutsManagerProps) {
                                 </div>
                               </TableCell>
                               <TableCell>
-                                {payout.clipper?.telegramHandle || '-'}
+                                {payout.clipper?.walletAddress ? (
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-xs font-medium">{payout.clipper.walletType || 'ETH'}</span>
+                                    <code className="text-xs text-muted-foreground">
+                                      {payout.clipper.walletAddress.slice(0, 6)}...{payout.clipper.walletAddress.slice(-4)}
+                                    </code>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 w-6 p-0"
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(payout.clipper!.walletAddress!);
+                                        toast.success('Wallet address copied');
+                                      }}
+                                    >
+                                      <Copy className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">No wallet</span>
+                                )}
                               </TableCell>
                               <TableCell>{payout.totalViews?.toLocaleString() || 0}</TableCell>
                               <TableCell>{payout.clipsCount || 0}</TableCell>
