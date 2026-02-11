@@ -96,6 +96,7 @@ async function migrate() {
     ['tier3_max_per_campaign', 'DECIMAL(10,2)'],
     ['required_tags', "JSONB DEFAULT '[]'::jsonb"],
     ['content_guidelines', 'TEXT'],
+    ['notion_url', 'TEXT'],
   ];
 
   for (const [col, type] of campaignNewCols) {
@@ -228,6 +229,11 @@ async function migrate() {
   if (!(await columnExists('clipper_profiles', 'wallet_address'))) {
     await sql.unsafe(`ALTER TABLE clipper_profiles ADD COLUMN wallet_address VARCHAR(255)`);
     console.log('  Added clipper_profiles.wallet_address');
+  }
+
+  if (!(await columnExists('clipper_profiles', 'wallet_type'))) {
+    await sql.unsafe(`ALTER TABLE clipper_profiles ADD COLUMN wallet_type VARCHAR(20)`);
+    console.log('  Added clipper_profiles.wallet_type');
   }
 
   // Set default tier to unassigned for new clippers

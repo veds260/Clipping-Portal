@@ -11,6 +11,7 @@ export const authConfig = {
       if (user) {
         token.id = user.id;
         token.role = (user as { role?: string }).role || 'clipper';
+        token.picture = user.image || null;
       }
       return token;
     },
@@ -18,6 +19,7 @@ export const authConfig = {
       if (token) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
+        session.user.image = (token.picture as string) || null;
       }
       return session;
     },

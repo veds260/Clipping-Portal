@@ -231,6 +231,31 @@ export default async function CampaignDetailPage({
         </Card>
       </div>
 
+      {/* Notion Embed */}
+      {campaign.notionUrl && (
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Campaign Brief</CardTitle>
+            <CardDescription>
+              <a href={campaign.notionUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
+                Open in Notion <ExternalLink className="h-3 w-3" />
+              </a>
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-lg border overflow-hidden bg-white">
+              <iframe
+                src={campaign.notionUrl.replace('notion.so', 'notion.site').replace(/\?.*$/, '')}
+                className="w-full border-0"
+                style={{ height: '600px' }}
+                loading="lazy"
+                title={`${campaign.name} brief`}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Tabs */}
       <CampaignDetailClient
         campaignId={id}

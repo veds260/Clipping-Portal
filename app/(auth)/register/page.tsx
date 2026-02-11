@@ -9,6 +9,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -20,6 +27,7 @@ export default function RegisterPage() {
     twitterHandle: '',
     telegramHandle: '',
     walletAddress: '',
+    walletType: 'ETH',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -62,6 +70,7 @@ export default function RegisterPage() {
           twitterHandle: formData.twitterHandle,
           telegramHandle: formData.telegramHandle || undefined,
           walletAddress: formData.walletAddress || undefined,
+          walletType: formData.walletAddress ? formData.walletType : undefined,
         }),
       });
 
@@ -158,15 +167,33 @@ export default function RegisterPage() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="walletAddress">Wallet Address (optional)</Label>
-            <Input
-              id="walletAddress"
-              name="walletAddress"
-              type="text"
-              placeholder="0x... or SOL address"
-              value={formData.walletAddress}
-              onChange={handleChange}
-              disabled={isLoading}
-            />
+            <div className="flex gap-2">
+              <Select
+                value={formData.walletType}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, walletType: value }))}
+                disabled={isLoading}
+              >
+                <SelectTrigger className="w-[100px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ETH">ETH</SelectItem>
+                  <SelectItem value="SOL">SOL</SelectItem>
+                  <SelectItem value="BTC">BTC</SelectItem>
+                  <SelectItem value="USDT">USDT</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input
+                id="walletAddress"
+                name="walletAddress"
+                type="text"
+                placeholder={formData.walletType === 'SOL' ? 'Solana address...' : '0x...'}
+                value={formData.walletAddress}
+                onChange={handleChange}
+                disabled={isLoading}
+                className="flex-1"
+              />
+            </div>
             <p className="text-xs text-muted-foreground">
               For receiving payouts. You can add this later in your profile.
             </p>

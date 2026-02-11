@@ -31,6 +31,7 @@ interface CampaignFormProps {
     budgetCap: string | null;
     status: string | null;
     contentGuidelines: string | null;
+    notionUrl: string | null;
     tier1CpmRate: string | null;
     tier2CpmRate: string | null;
     tier3FixedRate: string | null;
@@ -58,6 +59,7 @@ export function CampaignForm({ campaign }: CampaignFormProps) {
     budgetCap: parseFloat(campaign?.budgetCap || '0') || 0,
     status: campaign?.status || 'draft',
     contentGuidelines: campaign?.contentGuidelines || '',
+    notionUrl: campaign?.notionUrl || '',
 
     // Tier rates
     tier1CpmRate: parseFloat(campaign?.tier1CpmRate || '0') || 0,
@@ -107,6 +109,7 @@ export function CampaignForm({ campaign }: CampaignFormProps) {
       budgetCap: formData.budgetCap || undefined,
       status: formData.status as 'draft' | 'active' | 'paused' | 'completed' | undefined,
       contentGuidelines: formData.contentGuidelines || undefined,
+      notionUrl: formData.notionUrl || undefined,
       tier1CpmRate: formData.tier1CpmRate,
       tier2CpmRate: formData.tier2CpmRate,
       tier3FixedRate: formData.tier3FixedRate,
@@ -447,7 +450,7 @@ export function CampaignForm({ campaign }: CampaignFormProps) {
               Specific guidelines for clippers working on this campaign
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <Textarea
               id="contentGuidelines"
               value={formData.contentGuidelines}
@@ -455,6 +458,19 @@ export function CampaignForm({ campaign }: CampaignFormProps) {
               placeholder="Enter content guidelines for this campaign..."
               rows={6}
             />
+
+            <div className="space-y-2">
+              <Label htmlFor="notionUrl">Notion Page URL (optional)</Label>
+              <Input
+                id="notionUrl"
+                value={formData.notionUrl}
+                onChange={(e) => setFormData({ ...formData, notionUrl: e.target.value })}
+                placeholder="https://notion.so/your-page-id"
+              />
+              <p className="text-xs text-muted-foreground">
+                Paste a public Notion page URL. It will be embedded in the campaign details for clippers to view.
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>

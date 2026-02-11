@@ -13,12 +13,13 @@ const registerSchema = z.object({
   twitterHandle: z.string().optional(),
   telegramHandle: z.string().optional(),
   walletAddress: z.string().optional(),
+  walletType: z.string().optional(),
 });
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { email, password, name, twitterHandle, telegramHandle, walletAddress } = registerSchema.parse(body);
+    const { email, password, name, twitterHandle, telegramHandle, walletAddress, walletType } = registerSchema.parse(body);
 
     // Check if user exists
     const existingUser = await db.query.users.findFirst({
@@ -49,6 +50,7 @@ export async function POST(request: Request) {
       userId: newUser.id,
       telegramHandle,
       walletAddress,
+      walletType,
       status: 'pending',
     });
 

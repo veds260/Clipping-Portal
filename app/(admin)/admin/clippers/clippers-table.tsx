@@ -38,9 +38,10 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { MoreHorizontal, Eye, Film, DollarSign, TrendingUp, Key, Trash2, Mail, Wallet } from 'lucide-react';
+import { MoreHorizontal, Eye, Film, DollarSign, TrendingUp, Key, Trash2, Mail, Wallet, Megaphone, Plus } from 'lucide-react';
 import { updateClipperTier, updateClipperStatus, updateClipperNotes } from '@/lib/actions/clippers';
 import { updateUserPassword, updateUserEmail, deleteClipperData } from '@/lib/actions/admin-users';
+import { assignClipperToCampaign } from '@/lib/actions/campaign-assignments';
 import { format } from 'date-fns';
 
 interface Clipper {
@@ -57,6 +58,7 @@ interface Clipper {
   onboardedAt: Date | null;
   createdAt: Date | null;
   walletAddress: string | null;
+  walletType: string | null;
   user: {
     id: string;
     name: string | null;
@@ -66,8 +68,15 @@ interface Clipper {
   };
 }
 
+interface CampaignOption {
+  id: string;
+  name: string;
+  status: string | null;
+}
+
 interface ClippersTableProps {
   clippers: Clipper[];
+  campaigns?: CampaignOption[];
 }
 
 const tierColors: Record<string, string> = {
@@ -90,15 +99,18 @@ const statusColors: Record<string, string> = {
   suspended: 'bg-red-100 text-red-800',
 };
 
-export function ClippersTable({ clippers }: ClippersTableProps) {
+export function ClippersTable({ clippers, campaigns = [] }: ClippersTableProps) {
   const [filter, setFilter] = useState<string>('all');
   const [tierDialogOpen, setTierDialogOpen] = useState(false);
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [campaignDialogOpen, setCampaignDialogOpen] = useState(false);
   const [selectedClipper, setSelectedClipper] = useState<Clipper | null>(null);
   const [selectedTier, setSelectedTier] = useState<string>('');
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string>('');
+  const [selectedCampaignTier, setSelectedCampaignTier] = useState<string>('tier1');
   const [notes, setNotes] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newEmail, setNewEmail] = useState('');
@@ -183,6 +195,33 @@ export function ClippersTable({ clippers }: ClippersTableProps) {
     setSelectedClipper(clipper);
     setDeleteConfirmation('');
     setDeleteDialogOpen(true);
+  };
+
+  const openCampaignDialog = (clipper: Clipper) => {
+    setSelectedClipper(clipper);
+    setSelectedCampaignId('');
+    setSelectedCampaignTier(clipper.tier && clipper.tier !== 'unassigned' ? clipper.tier : 'tier1');
+    setCampaignDialogOpen(true);
+  };
+
+  const handleCampaignAssign = async () => {
+    if (!selectedClipper || !selectedCampaignId) return;
+
+    setIsLoading(true);
+    const result = await assignClipperToCampaign(
+      selectedCampaignId,
+      selectedClipper.id,
+      selectedCampaignTier as 'tier1' | 'tier2' | 'tier3'
+    );
+    setIsLoading(false);
+
+    if (result.error) {
+      toast.error(result.error);
+    } else {
+      toast.success('Clipper assigned to campaign');
+      setCampaignDialogOpen(false);
+      setSelectedClipper(null);
+    }
   };
 
   const handlePasswordChange = async () => {
@@ -308,6 +347,7 @@ export function ClippersTable({ clippers }: ClippersTableProps) {
                         {clipper.walletAddress && (
                           <p className="text-xs text-muted-foreground font-mono flex items-center gap-1">
                             <Wallet className="h-3 w-3" />
+                            <span className="text-xs font-medium text-foreground/70">{clipper.walletType || 'ETH'}</span>
                             {clipper.walletAddress.slice(0, 6)}...{clipper.walletAddress.slice(-4)}
                           </p>
                         )}
@@ -359,6 +399,10 @@ export function ClippersTable({ clippers }: ClippersTableProps) {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openCampaignDialog(clipper)}>
+                          <Megaphone className="h-4 w-4 mr-2" />
+                          Assign to Campaign
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => openTierDialog(clipper)}>
                           Change Tier
                         </DropdownMenuItem>
@@ -600,6 +644,60 @@ export function ClippersTable({ clippers }: ClippersTableProps) {
               disabled={isLoading || deleteConfirmation !== 'DELETE'}
             >
               {isLoading ? 'Deleting...' : 'Delete Clipper'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Campaign Assignment Dialog */}
+      <Dialog open={campaignDialogOpen} onOpenChange={setCampaignDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign to Campaign</DialogTitle>
+            <DialogDescription>
+              Assign {selectedClipper?.user.name || 'this clipper'} to a campaign.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Campaign</Label>
+              <Select value={selectedCampaignId} onValueChange={setSelectedCampaignId}>
+                <SelectTrigger className="mt-2">
+                  <SelectValue placeholder="Select a campaign..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {campaigns.filter(c => c.status === 'active').length === 0 ? (
+                    <SelectItem value="_none" disabled>No active campaigns</SelectItem>
+                  ) : (
+                    campaigns.filter(c => c.status === 'active').map((campaign) => (
+                      <SelectItem key={campaign.id} value={campaign.id}>
+                        {campaign.name}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Tier for this campaign</Label>
+              <Select value={selectedCampaignTier} onValueChange={setSelectedCampaignTier}>
+                <SelectTrigger className="mt-2">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="tier1">Tier 1 (CPM)</SelectItem>
+                  <SelectItem value="tier2">Tier 2 (Higher CPM)</SelectItem>
+                  <SelectItem value="tier3">Tier 3 (Fixed Rate)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCampaignDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCampaignAssign} disabled={isLoading || !selectedCampaignId}>
+              {isLoading ? 'Assigning...' : 'Assign'}
             </Button>
           </DialogFooter>
         </DialogContent>

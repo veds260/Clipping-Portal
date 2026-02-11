@@ -35,6 +35,7 @@ export const clipperProfiles = pgTable('clipper_profiles', {
   tier: clipperTierEnum('tier').default('unassigned'),
   telegramHandle: varchar('telegram_handle', { length: 100 }),
   walletAddress: varchar('wallet_address', { length: 255 }),
+  walletType: varchar('wallet_type', { length: 20 }),
   totalViews: bigint('total_views', { mode: 'number' }).default(0),
   totalEarnings: decimal('total_earnings', { precision: 10, scale: 2 }).default('0'),
   clipsSubmitted: integer('clips_submitted').default(0),
@@ -81,6 +82,7 @@ export const campaigns = pgTable('campaigns', {
 
   // Guidelines
   contentGuidelines: text('content_guidelines'),
+  notionUrl: text('notion_url'),
 
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),

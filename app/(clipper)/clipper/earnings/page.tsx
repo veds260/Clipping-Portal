@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { DollarSign, Clock, CheckCircle, Film } from 'lucide-react';
+import { DollarSign, Clock, CheckCircle, Film, Upload, Eye, TrendingUp, Wallet } from 'lucide-react';
 import { format } from 'date-fns';
 
 async function getEarningsData(userId: string) {
@@ -315,15 +315,52 @@ export default async function ClipperEarningsPage() {
       <Card className="mt-6">
         <CardHeader>
           <CardTitle>How Payouts Work</CardTitle>
+          <CardDescription>From clip submission to wallet payout</CardDescription>
         </CardHeader>
-        <CardContent className="prose prose-sm max-w-none">
-          <ul className="space-y-2 text-muted-foreground">
-            <li>Your earnings are calculated based on clip performance and your current rate</li>
-            <li>Payout batches are generated periodically by admins after reviewing clips</li>
-            <li>You can see real-time views on your clips, but earnings only show up after the admin approves a payout batch</li>
-            <li>Better performance leads to higher earning rates over time</li>
-            <li>Payouts are sent to the wallet address on your profile</li>
-          </ul>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-4">
+            <div className="relative p-4 rounded-lg border bg-card">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-bold">1</div>
+                <Upload className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <h4 className="text-sm font-medium mb-1">Submit Clips</h4>
+              <p className="text-xs text-muted-foreground">Post your clip on Twitter with the required tags and submit the link here.</p>
+            </div>
+
+            <div className="relative p-4 rounded-lg border bg-card">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-bold">2</div>
+                <Eye className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <h4 className="text-sm font-medium mb-1">Earn Views</h4>
+              <p className="text-xs text-muted-foreground">Your clip's views are tracked in real-time. More views means higher earnings.</p>
+            </div>
+
+            <div className="relative p-4 rounded-lg border bg-card">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-bold">3</div>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <h4 className="text-sm font-medium mb-1">Admin Review</h4>
+              <p className="text-xs text-muted-foreground">Admins review your clips periodically and generate payout batches for approved work.</p>
+            </div>
+
+            <div className="relative p-4 rounded-lg border bg-card">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-bold">4</div>
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <h4 className="text-sm font-medium mb-1">Get Paid</h4>
+              <p className="text-xs text-muted-foreground">Payouts are sent to the wallet address on your profile. Keep it up to date.</p>
+            </div>
+          </div>
+
+          <div className="mt-4 p-3 rounded-lg bg-primary/5 border border-primary/10">
+            <p className="text-xs text-muted-foreground text-center">
+              Consistent quality and strong performance lead to better rates over time. Keep clipping!
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

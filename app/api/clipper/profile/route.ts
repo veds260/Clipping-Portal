@@ -23,6 +23,7 @@ export async function GET() {
       profile: {
         telegramHandle: profile.telegramHandle,
         walletAddress: profile.walletAddress,
+        walletType: profile.walletType,
         tier: profile.tier,
         status: profile.status,
       },
@@ -41,7 +42,7 @@ export async function PATCH(request: Request) {
     }
 
     const body = await request.json();
-    const { telegramHandle, walletAddress } = body;
+    const { telegramHandle, walletAddress, walletType } = body;
 
     const profile = await db.query.clipperProfiles.findFirst({
       where: eq(clipperProfiles.userId, session.user.id),
@@ -56,6 +57,7 @@ export async function PATCH(request: Request) {
       .set({
         telegramHandle,
         walletAddress,
+        walletType,
         updatedAt: new Date(),
       })
       .where(eq(clipperProfiles.id, profile.id));

@@ -8,8 +8,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toast } from 'sonner';
-import { User, Mail, AtSign, MessageCircle, Wallet } from 'lucide-react';
+import { User, Mail, MessageCircle, Wallet } from 'lucide-react';
 
 export default function ProfilePage() {
   const { data: session, update } = useSession();
@@ -17,6 +24,7 @@ export default function ProfilePage() {
   const [profileData, setProfileData] = useState<{
     telegramHandle: string;
     walletAddress: string;
+    walletType: string;
     tier: string;
     status: string;
   } | null>(null);
@@ -50,6 +58,7 @@ export default function ProfilePage() {
         body: JSON.stringify({
           telegramHandle: profileData.telegramHandle,
           walletAddress: profileData.walletAddress,
+          walletType: profileData.walletType,
         }),
       });
 
@@ -144,15 +153,31 @@ export default function ProfilePage() {
             <form onSubmit={handleUpdateProfile} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="walletAddress">Wallet Address</Label>
-                <div className="relative">
-                  <Wallet className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="walletAddress"
-                    placeholder="0x... or SOL address"
-                    value={profileData?.walletAddress || ''}
-                    onChange={(e) => setProfileData(prev => prev ? { ...prev, walletAddress: e.target.value } : null)}
-                    className="pl-10"
-                  />
+                <div className="flex gap-2">
+                  <Select
+                    value={profileData?.walletType || 'ETH'}
+                    onValueChange={(value) => setProfileData(prev => prev ? { ...prev, walletType: value } : null)}
+                  >
+                    <SelectTrigger className="w-[100px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ETH">ETH</SelectItem>
+                      <SelectItem value="SOL">SOL</SelectItem>
+                      <SelectItem value="BTC">BTC</SelectItem>
+                      <SelectItem value="USDT">USDT</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="relative flex-1">
+                    <Wallet className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="walletAddress"
+                      placeholder={profileData?.walletType === 'SOL' ? 'Solana address...' : '0x...'}
+                      value={profileData?.walletAddress || ''}
+                      onChange={(e) => setProfileData(prev => prev ? { ...prev, walletAddress: e.target.value } : null)}
+                      className="pl-10"
+                    />
+                  </div>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Payouts are sent to this wallet address. Make sure it is correct.

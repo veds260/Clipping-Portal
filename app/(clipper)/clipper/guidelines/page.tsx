@@ -130,6 +130,22 @@ export default async function GuidelinesPage() {
                         </div>
                       </div>
                     )}
+
+                    {/* Notion Page Embed */}
+                    {campaign.notionUrl && (
+                      <div>
+                        <p className="text-sm font-medium mb-2">Campaign Brief:</p>
+                        <div className="rounded-lg border overflow-hidden bg-white">
+                          <iframe
+                            src={campaign.notionUrl.replace('notion.so', 'notion.site').replace(/\?.*$/, '')}
+                            className="w-full border-0"
+                            style={{ height: '500px' }}
+                            loading="lazy"
+                            title={`${campaign.name} brief`}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
