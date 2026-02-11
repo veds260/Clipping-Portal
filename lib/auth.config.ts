@@ -12,6 +12,23 @@ export const authConfig = {
         token.id = user.id;
         token.role = (user as { role?: string }).role || 'clipper';
         token.picture = user.image || null;
+        token.pictureChecked = !!user.image;
+      }
+      // One-time DB lookup if picture was never loaded
+      if (!token.picture && !token.pictureChecked && token.id) {
+        try {
+          const { db } = await import('@/lib/db');
+          const { users } = await import('@/lib/db/schema');
+          const { eq } = await import('drizzle-orm');
+          const dbUser = await db.query.users.findFirst({
+            where: eq(users.id, token.id as string),
+            columns: { avatarUrl: true },
+          });
+          token.picture = dbUser?.avatarUrl || null;
+          token.pictureChecked = true;
+        } catch {
+          // Non-fatal - just skip
+        }
       }
       return token;
     },

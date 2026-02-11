@@ -28,6 +28,7 @@ export default function ProfilePage() {
     walletType: string;
     tier: string;
     status: string;
+    avatarUrl: string | null;
   } | null>(null);
 
   useEffect(() => {
@@ -110,7 +111,7 @@ export default function ProfilePage() {
           <CardContent className="space-y-4">
             <div className="flex items-center gap-4">
               <Avatar className="h-16 w-16">
-                <AvatarImage src={session?.user?.image || undefined} />
+                <AvatarImage src={profileData?.avatarUrl || session?.user?.image || undefined} />
                 <AvatarFallback className="text-lg">
                   {session?.user?.name?.charAt(0).toUpperCase() || 'U'}
                 </AvatarFallback>

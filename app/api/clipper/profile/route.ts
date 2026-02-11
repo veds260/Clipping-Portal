@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { clipperProfiles } from '@/lib/db/schema';
+import { clipperProfiles, users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { validateWalletAddress } from '@/lib/wallet-validation';
 
@@ -20,6 +20,12 @@ export async function GET() {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
+    // Get avatarUrl from users table
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, session.user.id),
+      columns: { avatarUrl: true },
+    });
+
     return NextResponse.json({
       profile: {
         telegramHandle: profile.telegramHandle,
@@ -27,6 +33,7 @@ export async function GET() {
         walletType: profile.walletType,
         tier: profile.tier,
         status: profile.status,
+        avatarUrl: user?.avatarUrl || null,
       },
     });
   } catch (error) {

@@ -63,18 +63,19 @@ export async function POST(request: Request) {
       status: 'pending',
     });
 
-    // Fetch Twitter avatar in background (non-blocking)
+    // Fetch Twitter avatar and store before responding
     if (twitterHandle) {
-      fetchTwitterProfileImage(twitterHandle)
-        .then(async (avatarUrl) => {
-          if (avatarUrl) {
-            await db
-              .update(users)
-              .set({ avatarUrl, updatedAt: new Date() })
-              .where(eq(users.id, newUser.id));
-          }
-        })
-        .catch((err) => console.error('Failed to fetch avatar:', err));
+      try {
+        const avatarUrl = await fetchTwitterProfileImage(twitterHandle);
+        if (avatarUrl) {
+          await db
+            .update(users)
+            .set({ avatarUrl, updatedAt: new Date() })
+            .where(eq(users.id, newUser.id));
+        }
+      } catch (err) {
+        console.error('Failed to fetch avatar:', err);
+      }
     }
 
     return NextResponse.json({
