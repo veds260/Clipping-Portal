@@ -305,7 +305,38 @@ async function migrate() {
   console.log('  Updated default tier to unassigned');
 
   // ============================================================
-  // 10. Ensure admin user exists
+  // 10. Add last_set_password column and backfill existing clippers
+  // ============================================================
+  console.log('Setting up credential visibility...');
+
+  if (!(await columnExists('clipper_profiles', 'last_set_password'))) {
+    await sql.unsafe(`ALTER TABLE clipper_profiles ADD COLUMN last_set_password VARCHAR(255)`);
+    console.log('  Added clipper_profiles.last_set_password');
+  }
+
+  // Backfill: reset password for all clippers who don't have last_set_password stored
+  const clippersWithoutPassword = await sql`
+    SELECT cp.id, cp.user_id, u.email, u.name
+    FROM clipper_profiles cp
+    JOIN users u ON cp.user_id = u.id
+    WHERE cp.last_set_password IS NULL AND u.role = 'clipper'
+  `;
+
+  if (clippersWithoutPassword.length > 0) {
+    const bcryptMod = await import('bcryptjs');
+    for (const clipper of clippersWithoutPassword) {
+      const defaultPassword = 'clipper123';
+      const hash = await bcryptMod.default.hash(defaultPassword, 12);
+      await sql`UPDATE users SET password_hash = ${hash}, updated_at = NOW() WHERE id = ${clipper.user_id}`;
+      await sql`UPDATE clipper_profiles SET last_set_password = ${defaultPassword} WHERE id = ${clipper.id}`;
+      console.log(`  Reset password for ${clipper.email || clipper.name} -> ${defaultPassword}`);
+    }
+  } else {
+    console.log('  All clippers have stored passwords');
+  }
+
+  // ============================================================
+  // 11. Ensure admin user exists
   // ============================================================
   console.log('Ensuring admin user...');
 
