@@ -9,9 +9,56 @@ if (!connectionString) {
   process.exit(1);
 }
 
-const sql = postgres(connectionString, { prepare: false });
+function createConnection() {
+  return postgres(connectionString!, {
+    prepare: false,
+    max: 1,
+    idle_timeout: 30,
+    connect_timeout: 30,
+    ssl: { rejectUnauthorized: false },
+  });
+}
+
+async function withRetry<T>(fn: () => Promise<T>, label: string, maxRetries = 3): Promise<T> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err: unknown) {
+      const code = (err as { code?: string }).code;
+      if (code === 'ECONNRESET' || code === 'ECONNREFUSED' || code === 'ETIMEDOUT') {
+        console.log(`  [retry ${attempt}/${maxRetries}] ${label} - ${code}`);
+        if (attempt < maxRetries) {
+          await new Promise(r => setTimeout(r, 2000 * attempt));
+          continue;
+        }
+      }
+      throw err;
+    }
+  }
+  throw new Error('Unreachable');
+}
 
 async function migrate() {
+  let sql = createConnection();
+
+  // Test connection with retry
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    try {
+      await sql`SELECT 1`;
+      console.log('Database connected.');
+      break;
+    } catch (err: unknown) {
+      console.log(`Connection attempt ${attempt}/5 failed: ${(err as Error).message}`);
+      if (attempt === 5) {
+        console.error('Could not connect to database after 5 attempts.');
+        process.exit(1);
+      }
+      await sql.end().catch(() => {});
+      await new Promise(r => setTimeout(r, 3000 * attempt));
+      sql = createConnection();
+    }
+  }
+
   console.log('Starting migration...');
 
   // Helper to check if a column exists
@@ -57,10 +104,12 @@ async function migrate() {
   console.log('Updating enums...');
 
   for (const val of ['unassigned', 'tier1', 'tier2', 'tier3']) {
-    if (!(await enumValueExists('clipper_tier', val))) {
-      await sql.unsafe(`ALTER TYPE clipper_tier ADD VALUE IF NOT EXISTS '${val}'`);
-      console.log(`  Added '${val}' to clipper_tier enum`);
-    }
+    await withRetry(async () => {
+      if (!(await enumValueExists('clipper_tier', val))) {
+        await sql.unsafe(`ALTER TYPE clipper_tier ADD VALUE IF NOT EXISTS '${val}'`);
+        console.log(`  Added '${val}' to clipper_tier enum`);
+      }
+    }, `enum ${val}`);
   }
 
   // ============================================================
