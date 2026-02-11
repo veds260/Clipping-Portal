@@ -125,13 +125,12 @@ export async function generatePayoutBatch(periodStart: Date, periodEnd: Date) {
           clipperTotal += clipEarnings;
           paidClipsCount++;
 
-          // Update clip with payout info
+          // Update clip with payout info (stays approved until admin pays)
           await db
             .update(clips)
             .set({
               payoutAmount: clipEarnings.toFixed(2),
               payoutBatchId: batch.id,
-              status: 'paid',
               updatedAt: new Date(),
             })
             .where(eq(clips.id, clip.id));
@@ -205,6 +204,22 @@ export async function markPayoutAsPaid(payoutId: string) {
       })
       .where(eq(clipperPayouts.id, payoutId));
 
+    // Mark this clipper's clips in this batch as paid
+    if (payout.clipperId && payout.batchId) {
+      const clipperClips = await db.query.clips.findMany({
+        where: and(
+          eq(clips.payoutBatchId, payout.batchId),
+          eq(clips.clipperId, payout.clipperId),
+        ),
+      });
+      for (const clip of clipperClips) {
+        await db
+          .update(clips)
+          .set({ status: 'paid', updatedAt: new Date() })
+          .where(eq(clips.id, clip.id));
+      }
+    }
+
     // Update clipper's total earnings
     if (payout.clipperId) {
       await db
@@ -217,6 +232,7 @@ export async function markPayoutAsPaid(payoutId: string) {
     }
 
     revalidatePath('/admin/payouts');
+    revalidatePath('/clipper/clips');
     return { success: true };
   } catch (error) {
     console.error('Error marking payout as paid:', error);
@@ -317,7 +333,21 @@ export async function markBatchAsPaid(batchId: string) {
         })
         .where(eq(clipperPayouts.id, payout.id));
 
+      // Mark this clipper's clips in the batch as paid
       if (payout.clipperId) {
+        const clipperClips = await db.query.clips.findMany({
+          where: and(
+            eq(clips.payoutBatchId, batchId),
+            eq(clips.clipperId, payout.clipperId),
+          ),
+        });
+        for (const clip of clipperClips) {
+          await db
+            .update(clips)
+            .set({ status: 'paid', updatedAt: new Date() })
+            .where(eq(clips.id, clip.id));
+        }
+
         await db
           .update(clipperProfiles)
           .set({
@@ -339,6 +369,7 @@ export async function markBatchAsPaid(batchId: string) {
 
     revalidatePath('/admin/payouts');
     revalidatePath('/clipper/earnings');
+    revalidatePath('/clipper/clips');
     return { success: true };
   } catch (error) {
     console.error('Error marking batch as paid:', error);
