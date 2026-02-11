@@ -8,8 +8,7 @@ import { Plus, Megaphone } from 'lucide-react';
 import Link from 'next/link';
 import { CampaignsTable } from './campaigns-table';
 
-// Cache for 30 seconds
-export const revalidate = 30;
+export const dynamic = 'force-dynamic';
 
 async function getCampaigns() {
   const campaignsData = await db
