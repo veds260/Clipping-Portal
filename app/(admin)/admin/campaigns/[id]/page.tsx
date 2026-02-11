@@ -194,7 +194,7 @@ export default async function CampaignDetailPage({
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-3 mb-8">
+      <div className="grid gap-4 md:grid-cols-3 mb-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Total Clips</CardTitle>
@@ -231,6 +231,28 @@ export default async function CampaignDetailPage({
         </Card>
       </div>
 
+      {/* Tier Rates */}
+      <div className="grid gap-4 md:grid-cols-3 mb-8">
+        <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
+          <Badge className="bg-gray-100 text-gray-800" variant="outline">Tier 1</Badge>
+          <span className="text-sm font-medium">
+            ${parseFloat(campaign.tier1CpmRate || '0').toFixed(2)} per 1K views
+          </span>
+        </div>
+        <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
+          <Badge className="bg-blue-100 text-blue-800" variant="outline">Tier 2</Badge>
+          <span className="text-sm font-medium">
+            ${parseFloat(campaign.tier2CpmRate || '0').toFixed(2)} per 1K views
+          </span>
+        </div>
+        <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
+          <Badge className="bg-purple-100 text-purple-800" variant="outline">Tier 3</Badge>
+          <span className="text-sm font-medium">
+            ${parseFloat(campaign.tier3FixedRate || '0').toFixed(2)} per clip
+          </span>
+        </div>
+      </div>
+
       {/* Notion Link */}
       {campaign.notionUrl && (
         <a
@@ -256,6 +278,11 @@ export default async function CampaignDetailPage({
         assignments={JSON.parse(JSON.stringify(assignments))}
         clips={JSON.parse(JSON.stringify(campaignClips))}
         availableClippers={JSON.parse(JSON.stringify(availableClippers))}
+        campaignRates={{
+          tier1CpmRate: campaign.tier1CpmRate,
+          tier2CpmRate: campaign.tier2CpmRate,
+          tier3FixedRate: campaign.tier3FixedRate,
+        }}
       />
     </div>
   );

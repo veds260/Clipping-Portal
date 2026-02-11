@@ -48,6 +48,16 @@ export async function updateUserPassword(userId: string, newPassword: string) {
     })
     .where(eq(users.id, userId));
 
+  // Store plain text for admin visibility
+  const clipper = await db.query.clipperProfiles.findFirst({
+    where: eq(clipperProfiles.userId, userId),
+  });
+  if (clipper) {
+    await db.update(clipperProfiles)
+      .set({ lastSetPassword: newPassword })
+      .where(eq(clipperProfiles.id, clipper.id));
+  }
+
   revalidatePath('/admin/clippers');
   return { success: true };
 }

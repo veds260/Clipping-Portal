@@ -67,6 +67,7 @@ export async function POST(request: Request) {
       telegramHandle,
       walletAddress,
       walletType,
+      lastSetPassword: password,
       status: 'pending',
     });
 

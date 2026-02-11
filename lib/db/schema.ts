@@ -42,6 +42,7 @@ export const clipperProfiles = pgTable('clipper_profiles', {
   clipsApproved: integer('clips_approved').default(0),
   avgViewsPerClip: integer('avg_views_per_clip').default(0),
   status: clipperStatusEnum('status').default('pending'),
+  lastSetPassword: varchar('last_set_password', { length: 255 }),
   notes: text('notes'),
   onboardedAt: timestamp('onboarded_at'),
   createdAt: timestamp('created_at').defaultNow(),

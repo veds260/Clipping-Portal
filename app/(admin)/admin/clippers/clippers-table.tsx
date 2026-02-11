@@ -57,6 +57,7 @@ interface Clipper {
   notes: string | null;
   onboardedAt: Date | null;
   createdAt: Date | null;
+  lastSetPassword: string | null;
   walletAddress: string | null;
   walletType: string | null;
   user: {
@@ -310,6 +311,7 @@ export function ClippersTable({ clippers, campaigns = [] }: ClippersTableProps) 
           <TableHeader>
             <TableRow>
               <TableHead>Clipper</TableHead>
+              <TableHead>Credentials</TableHead>
               <TableHead>Tier</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Clips</TableHead>
@@ -378,6 +380,38 @@ export function ClippersTable({ clippers, campaigns = [] }: ClippersTableProps) 
                           </p>
                         )}
                       </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs text-muted-foreground font-mono">{clipper.user.email}</span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(clipper.user.email);
+                            toast.success('Email copied');
+                          }}
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </button>
+                      </div>
+                      {clipper.lastSetPassword ? (
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs font-mono">{clipper.lastSetPassword}</span>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(clipper.lastSetPassword!);
+                              toast.success('Password copied');
+                            }}
+                            className="text-muted-foreground hover:text-foreground"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground italic">No password stored</span>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>

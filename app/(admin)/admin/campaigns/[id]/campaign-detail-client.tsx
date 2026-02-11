@@ -90,11 +90,18 @@ interface AvailableClipper {
   };
 }
 
+interface CampaignRates {
+  tier1CpmRate: string | null;
+  tier2CpmRate: string | null;
+  tier3FixedRate: string | null;
+}
+
 interface CampaignDetailClientProps {
   campaignId: string;
   assignments: Assignment[];
   clips: CampaignClip[];
   availableClippers: AvailableClipper[];
+  campaignRates: CampaignRates;
 }
 
 const tierColors: Record<string, string> = {
@@ -116,11 +123,18 @@ const clipStatusColors: Record<string, string> = {
   paid: 'bg-blue-100 text-blue-800',
 };
 
+function getRateLabel(tier: string, rates: CampaignRates): string {
+  if (tier === 'tier3') return `$${parseFloat(rates.tier3FixedRate || '0').toFixed(2)}/clip`;
+  if (tier === 'tier2') return `$${parseFloat(rates.tier2CpmRate || '0').toFixed(2)}/1K views`;
+  return `$${parseFloat(rates.tier1CpmRate || '0').toFixed(2)}/1K views`;
+}
+
 export function CampaignDetailClient({
   campaignId,
   assignments,
   clips,
   availableClippers,
+  campaignRates,
 }: CampaignDetailClientProps) {
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [tierDialogOpen, setTierDialogOpen] = useState(false);
@@ -256,12 +270,17 @@ export function CampaignDetailClient({
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge
-                            className={tierColors[assignment.assignedTier] || ''}
-                            variant="outline"
-                          >
-                            {tierLabels[assignment.assignedTier] || assignment.assignedTier}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge
+                              className={tierColors[assignment.assignedTier] || ''}
+                              variant="outline"
+                            >
+                              {tierLabels[assignment.assignedTier] || assignment.assignedTier}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              {getRateLabel(assignment.assignedTier, campaignRates)}
+                            </span>
+                          </div>
                         </TableCell>
                         <TableCell>{assignment.clipsSubmitted}</TableCell>
                         <TableCell>{formatCurrency(assignment.earnings)}</TableCell>
