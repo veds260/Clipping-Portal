@@ -137,6 +137,10 @@ export async function deleteEntireDatabase(confirmationText: string) {
   // Keep admin user but delete all others
   await db.delete(users).where(ne(users.role, 'admin'));
 
+  // Re-ensure admin user exists with correct credentials
+  const { ensureAdminUser } = await import('@/lib/init-admin');
+  await ensureAdminUser();
+
   revalidatePath('/admin');
   return { success: true };
 }
