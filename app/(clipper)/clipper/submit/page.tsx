@@ -44,6 +44,9 @@ async function getAssignedCampaigns(clipperId: string) {
         requiredTags: a.campaign.requiredTags as string[] | null,
         maxClipsPerClipper: a.campaign.maxClipsPerClipper || 0,
         submittedClips: clipCount.length,
+        tier1CpmRate: a.campaign.tier1CpmRate,
+        tier2CpmRate: a.campaign.tier2CpmRate,
+        tier3FixedRate: a.campaign.tier3FixedRate,
       };
     })
   );

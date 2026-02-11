@@ -27,6 +27,9 @@ interface Campaign {
   requiredTags: string[] | null;
   maxClipsPerClipper: number;
   submittedClips: number;
+  tier1CpmRate: string | null;
+  tier2CpmRate: string | null;
+  tier3FixedRate: string | null;
 }
 
 interface SubmitClipFormProps {
@@ -272,18 +275,30 @@ export function SubmitClipForm({ campaigns }: SubmitClipFormProps) {
             )}
             {campaignId && (() => {
               const selected = campaigns.find(c => c.id === campaignId);
-              if (selected?.maxClipsPerClipper && selected.maxClipsPerClipper > 0) {
-                const remaining = selected.maxClipsPerClipper - selected.submittedClips;
-                return (
-                  <p className={`text-sm ${remaining <= 0 ? 'text-red-400' : 'text-muted-foreground'}`}>
-                    {remaining <= 0
-                      ? 'You have reached the clip limit for this campaign.'
-                      : `${remaining} clip${remaining === 1 ? '' : 's'} remaining for this campaign.`
-                    }
+              if (!selected) return null;
+              return (
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-primary">
+                    Your rate:{' '}
+                    {selected.assignedTier === 'tier3'
+                      ? `$${parseFloat(selected.tier3FixedRate || '0').toFixed(2)} per clip`
+                      : selected.assignedTier === 'tier2'
+                        ? `$${parseFloat(selected.tier2CpmRate || '0').toFixed(2)} per 1K views`
+                        : `$${parseFloat(selected.tier1CpmRate || '0').toFixed(2)} per 1K views`}
                   </p>
-                );
-              }
-              return null;
+                  {selected.maxClipsPerClipper > 0 && (() => {
+                    const remaining = selected.maxClipsPerClipper - selected.submittedClips;
+                    return (
+                      <p className={`text-sm ${remaining <= 0 ? 'text-red-400' : 'text-muted-foreground'}`}>
+                        {remaining <= 0
+                          ? 'You have reached the clip limit for this campaign.'
+                          : `${remaining} clip${remaining === 1 ? '' : 's'} remaining for this campaign.`
+                        }
+                      </p>
+                    );
+                  })()}
+                </div>
+              );
             })()}
           </div>
         </CardContent>

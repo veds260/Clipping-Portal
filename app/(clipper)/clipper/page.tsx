@@ -223,22 +223,27 @@ export default async function ClipperDashboard() {
             ) : (
               <div className="space-y-4">
                 {campaignData.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between border rounded-lg p-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="text-sm font-medium truncate">
-                          {item.campaign.name}
-                        </p>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {item.clipCount} clips submitted &middot; {item.approvedCount} approved
+                  <div key={item.id} className="border rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-sm font-medium truncate">
+                        {item.campaign.name}
                       </p>
+                      {item.earnedAmount > 0 && (
+                        <span className="text-sm font-medium text-green-400">
+                          {formatCurrency(item.earnedAmount)}
+                        </span>
+                      )}
                     </div>
-                    {item.earnedAmount > 0 && (
-                      <span className="text-sm font-medium text-green-400">
-                        {formatCurrency(item.earnedAmount)}
-                      </span>
-                    )}
+                    <p className="text-xs text-muted-foreground mb-1">
+                      {item.clipCount} clips submitted &middot; {item.approvedCount} approved
+                    </p>
+                    <p className="text-xs font-medium text-primary">
+                      {item.assignedTier === 'tier3'
+                        ? `$${parseFloat(item.campaign.tier3FixedRate || '0').toFixed(2)} per clip`
+                        : item.assignedTier === 'tier2'
+                          ? `$${parseFloat(item.campaign.tier2CpmRate || '0').toFixed(2)} per 1K views`
+                          : `$${parseFloat(item.campaign.tier1CpmRate || '0').toFixed(2)} per 1K views`}
+                    </p>
                   </div>
                 ))}
               </div>

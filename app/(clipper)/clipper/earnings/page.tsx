@@ -5,7 +5,7 @@ import { db } from '@/lib/db';
 // Cache for 30 seconds
 export const revalidate = 30;
 
-import { clipperProfiles, clipperPayouts, clips } from '@/lib/db/schema';
+import { clipperProfiles, clipperPayouts, clips, campaignClipperAssignments } from '@/lib/db/schema';
 import { eq, desc, and } from 'drizzle-orm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -48,6 +48,16 @@ async function getEarningsData(userId: string) {
     },
   });
 
+  // Get campaign assignments for rate info
+  const assignments = await db.query.campaignClipperAssignments.findMany({
+    where: eq(campaignClipperAssignments.clipperId, profile.id),
+    with: {
+      campaign: true,
+    },
+  });
+
+  const assignmentMap = new Map(assignments.map(a => [a.campaignId, a]));
+
   // Group earnings by campaign
   const campaignEarnings = new Map<string, {
     campaignName: string;
@@ -55,16 +65,31 @@ async function getEarningsData(userId: string) {
     approvedCount: number;
     paidAmount: number;
     approvedAmount: number;
+    rate: string;
   }>();
 
   for (const clip of approvedClips) {
     const key = clip.campaignId || 'uncategorized';
+    const assignment = clip.campaignId ? assignmentMap.get(clip.campaignId) : null;
+    let rate = '';
+    if (assignment && clip.campaign) {
+      const tier = assignment.assignedTier;
+      if (tier === 'tier3') {
+        rate = `$${parseFloat(clip.campaign.tier3FixedRate || '0').toFixed(2)}/clip`;
+      } else if (tier === 'tier2') {
+        rate = `$${parseFloat(clip.campaign.tier2CpmRate || '0').toFixed(2)}/1K views`;
+      } else {
+        rate = `$${parseFloat(clip.campaign.tier1CpmRate || '0').toFixed(2)}/1K views`;
+      }
+    }
+
     const existing = campaignEarnings.get(key) || {
       campaignName: clip.campaign?.name || 'Uncategorized',
       clipCount: 0,
       approvedCount: 0,
       paidAmount: 0,
       approvedAmount: 0,
+      rate,
     };
 
     existing.clipCount++;
@@ -279,6 +304,7 @@ export default async function ClipperEarningsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Campaign</TableHead>
+                    <TableHead>Rate</TableHead>
                     <TableHead>Clips</TableHead>
                     <TableHead>Paid</TableHead>
                     <TableHead>Pending</TableHead>
@@ -294,6 +320,9 @@ export default async function ClipperEarningsPage() {
                         <p className="text-xs text-muted-foreground">
                           {entry.approvedCount} approved
                         </p>
+                      </TableCell>
+                      <TableCell className="text-xs font-medium text-primary whitespace-nowrap">
+                        {entry.rate || '--'}
                       </TableCell>
                       <TableCell>{entry.clipCount}</TableCell>
                       <TableCell className="font-medium text-green-400">
