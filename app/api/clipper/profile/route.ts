@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { clipperProfiles } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { validateWalletAddress } from '@/lib/wallet-validation';
 
 export async function GET() {
   try {
@@ -43,6 +44,14 @@ export async function PATCH(request: Request) {
 
     const body = await request.json();
     const { telegramHandle, walletAddress, walletType } = body;
+
+    // Validate wallet address format
+    if (walletAddress && walletType) {
+      const walletError = validateWalletAddress(walletType, walletAddress);
+      if (walletError) {
+        return NextResponse.json({ error: walletError }, { status: 400 });
+      }
+    }
 
     const profile = await db.query.clipperProfiles.findFirst({
       where: eq(clipperProfiles.userId, session.user.id),

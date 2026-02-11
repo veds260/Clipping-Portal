@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { User, Mail, MessageCircle, Wallet } from 'lucide-react';
+import { validateWalletAddress } from '@/lib/wallet-validation';
 
 export default function ProfilePage() {
   const { data: session, update } = useSession();
@@ -49,6 +50,14 @@ export default function ProfilePage() {
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profileData) return;
+
+    if (profileData.walletAddress) {
+      const walletError = validateWalletAddress(profileData.walletType || 'ETH', profileData.walletAddress);
+      if (walletError) {
+        toast.error(walletError);
+        return;
+      }
+    }
 
     setIsLoading(true);
     try {

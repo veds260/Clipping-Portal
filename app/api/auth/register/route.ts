@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { fetchTwitterProfileImage } from '@/lib/twitter-api';
+import { validateWalletAddress } from '@/lib/wallet-validation';
 
 const registerSchema = z.object({
   email: z.string().email(),
@@ -20,6 +21,14 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { email, password, name, twitterHandle, telegramHandle, walletAddress, walletType } = registerSchema.parse(body);
+
+    // Validate wallet address format
+    if (walletAddress && walletType) {
+      const walletError = validateWalletAddress(walletType, walletAddress);
+      if (walletError) {
+        return NextResponse.json({ error: walletError }, { status: 400 });
+      }
+    }
 
     // Check if user exists
     const existingUser = await db.query.users.findFirst({

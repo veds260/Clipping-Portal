@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { validateWalletAddress } from '@/lib/wallet-validation';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -57,6 +58,15 @@ export default function RegisterPage() {
       setError('Twitter handle is required for clip verification');
       setIsLoading(false);
       return;
+    }
+
+    if (formData.walletAddress) {
+      const walletError = validateWalletAddress(formData.walletType, formData.walletAddress);
+      if (walletError) {
+        setError(walletError);
+        setIsLoading(false);
+        return;
+      }
     }
 
     try {
