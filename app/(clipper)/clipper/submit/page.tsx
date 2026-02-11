@@ -48,6 +48,7 @@ async function getAssignedCampaigns(clipperId: string) {
         tier2CpmRate: a.campaign.tier2CpmRate,
         tier3FixedRate: a.campaign.tier3FixedRate,
         notionUrl: a.campaign.notionUrl,
+        announcement: a.campaign.announcement,
       };
     })
   );

@@ -31,6 +31,7 @@ interface Campaign {
   tier2CpmRate: string | null;
   tier3FixedRate: string | null;
   notionUrl: string | null;
+  announcement: string | null;
 }
 
 interface SubmitClipFormProps {
@@ -287,6 +288,12 @@ export function SubmitClipForm({ campaigns }: SubmitClipFormProps) {
                         ? `$${parseFloat(selected.tier2CpmRate || '0').toFixed(2)} per 1K views`
                         : `$${parseFloat(selected.tier1CpmRate || '0').toFixed(2)} per 1K views`}
                   </p>
+                  {selected.announcement && (
+                    <div className="flex items-start gap-2 p-2 rounded-md border border-yellow-700/50 bg-yellow-900/20 text-sm">
+                      <span className="text-yellow-500 mt-0.5">!</span>
+                      <p className="text-muted-foreground whitespace-pre-wrap">{selected.announcement}</p>
+                    </div>
+                  )}
                   {selected.notionUrl && (
                     <a
                       href={selected.notionUrl}

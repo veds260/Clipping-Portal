@@ -2,8 +2,7 @@ import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
 
-// Cache for 30 seconds
-export const revalidate = 30;
+export const dynamic = 'force-dynamic';
 import { clipperProfiles, clips, clipperPayouts, campaignClipperAssignments } from '@/lib/db/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -142,6 +141,22 @@ export default async function ClipperDashboard() {
   return (
     <div className="p-8">
       <CampaignAnnouncements announcements={announcements} />
+
+      {/* Persistent announcement banners */}
+      {announcements.length > 0 && (
+        <div className="space-y-3 mb-6">
+          {announcements.map((a) => (
+            <div key={a.campaignId} className="flex items-start gap-3 p-4 rounded-lg border border-yellow-700/50 bg-yellow-900/20">
+              <span className="text-yellow-500 mt-0.5 text-lg">!</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-yellow-400">{a.campaignName}</p>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{a.announcement}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Welcome to Web3 Clipping!</h1>
         <p className="text-muted-foreground">
