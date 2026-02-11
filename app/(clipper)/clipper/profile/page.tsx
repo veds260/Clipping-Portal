@@ -164,24 +164,22 @@ export default function ProfilePage() {
                 <Label htmlFor="walletAddress">Wallet Address</Label>
                 <div className="flex gap-2">
                   <Select
-                    value={profileData?.walletType || 'ETH'}
+                    value={profileData?.walletType || 'EVM'}
                     onValueChange={(value) => setProfileData(prev => prev ? { ...prev, walletType: value } : null)}
                   >
                     <SelectTrigger className="w-[100px]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ETH">ETH</SelectItem>
+                      <SelectItem value="EVM">EVM</SelectItem>
                       <SelectItem value="SOL">SOL</SelectItem>
-                      <SelectItem value="BTC">BTC</SelectItem>
-                      <SelectItem value="USDT">USDT</SelectItem>
                     </SelectContent>
                   </Select>
                   <div className="relative flex-1">
                     <Wallet className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="walletAddress"
-                      placeholder={profileData?.walletType === 'SOL' ? 'Solana address...' : '0x...'}
+                      placeholder={profileData?.walletType === 'SOL' ? 'Solana address' : '0x...'}
                       value={profileData?.walletAddress || ''}
                       onChange={(e) => setProfileData(prev => prev ? { ...prev, walletAddress: e.target.value } : null)}
                       className="pl-10"

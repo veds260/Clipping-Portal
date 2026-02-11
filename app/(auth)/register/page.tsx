@@ -28,7 +28,7 @@ export default function RegisterPage() {
     twitterHandle: '',
     telegramHandle: '',
     walletAddress: '',
-    walletType: 'ETH',
+    walletType: 'EVM',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -187,17 +187,15 @@ export default function RegisterPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ETH">ETH</SelectItem>
+                  <SelectItem value="EVM">EVM</SelectItem>
                   <SelectItem value="SOL">SOL</SelectItem>
-                  <SelectItem value="BTC">BTC</SelectItem>
-                  <SelectItem value="USDT">USDT</SelectItem>
                 </SelectContent>
               </Select>
               <Input
                 id="walletAddress"
                 name="walletAddress"
                 type="text"
-                placeholder={formData.walletType === 'SOL' ? 'Solana address...' : '0x...'}
+                placeholder={formData.walletType === 'SOL' ? 'Solana address' : '0x...'}
                 value={formData.walletAddress}
                 onChange={handleChange}
                 disabled={isLoading}

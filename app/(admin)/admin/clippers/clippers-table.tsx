@@ -347,7 +347,7 @@ export function ClippersTable({ clippers, campaigns = [] }: ClippersTableProps) 
                         {clipper.walletAddress && (
                           <p className="text-xs text-muted-foreground font-mono flex items-center gap-1">
                             <Wallet className="h-3 w-3" />
-                            <span className="text-xs font-medium text-foreground/70">{clipper.walletType || 'ETH'}</span>
+                            <span className="text-xs font-medium text-foreground/70">{clipper.walletType || 'EVM'}</span>
                             {clipper.walletAddress.slice(0, 6)}...{clipper.walletAddress.slice(-4)}
                             <button
                               onClick={() => {

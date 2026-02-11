@@ -314,7 +314,7 @@ export function PayoutsManager({ batches }: PayoutsManagerProps) {
                               <TableCell>
                                 {payout.clipper?.walletAddress ? (
                                   <div className="flex items-center gap-1">
-                                    <span className="text-xs font-medium">{payout.clipper.walletType || 'ETH'}</span>
+                                    <span className="text-xs font-medium">{payout.clipper.walletType || 'EVM'}</span>
                                     <code className="text-xs text-muted-foreground">
                                       {payout.clipper.walletAddress.slice(0, 6)}...{payout.clipper.walletAddress.slice(-4)}
                                     </code>
