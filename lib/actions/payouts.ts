@@ -106,7 +106,7 @@ export async function generatePayoutBatch(periodStart: Date, periodEnd: Date) {
           const cpmRate = tier === 'tier1'
             ? parseFloat(campaign.tier1CpmRate || '0')
             : parseFloat(campaign.tier2CpmRate || '0');
-          rawEarnings = Math.floor(views / 1000) * cpmRate;
+          rawEarnings = (views / 1000) * cpmRate;
         }
 
         // Apply per-clip cap
