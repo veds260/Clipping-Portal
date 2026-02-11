@@ -16,8 +16,8 @@ const campaignSchema = z.object({
   endDate: z.coerce.date().optional(),
   budgetCap: z.number().min(0).optional(),
   status: z.enum(['draft', 'active', 'paused', 'completed']).optional(),
-  contentGuidelines: z.string().optional(),
-  notionUrl: z.string().optional(),
+  contentGuidelines: z.string().nullable().optional(),
+  notionUrl: z.string().nullable().optional(),
 
   // Tier rates
   tier1CpmRate: z.number().min(0).default(0),
@@ -99,8 +99,8 @@ export async function updateCampaign(campaignId: string, data: CampaignFormData)
         endDate: validated.endDate,
         budgetCap: validated.budgetCap?.toString(),
         status: validated.status,
-        contentGuidelines: validated.contentGuidelines,
-        notionUrl: validated.notionUrl,
+        contentGuidelines: validated.contentGuidelines || null,
+        notionUrl: validated.notionUrl || null,
         tier1CpmRate: validated.tier1CpmRate.toString(),
         tier2CpmRate: validated.tier2CpmRate.toString(),
         tier3FixedRate: validated.tier3FixedRate.toString(),
