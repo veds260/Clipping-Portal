@@ -1,8 +1,8 @@
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
-import { clipperProfiles, campaignClipperAssignments } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { clipperProfiles, campaignClipperAssignments, clips } from '@/lib/db/schema';
+import { eq, and } from 'drizzle-orm';
 import { SubmitClipForm } from './submit-form';
 
 export const dynamic = 'force-dynamic';
@@ -23,15 +23,32 @@ async function getAssignedCampaigns(clipperId: string) {
   });
 
   // Only return campaigns that are active
-  return assignments
-    .filter((a) => a.campaign.status === 'active')
-    .map((a) => ({
-      id: a.campaign.id,
-      name: a.campaign.name,
-      brandName: a.campaign.brandName,
-      assignedTier: a.assignedTier,
-      requiredTags: a.campaign.requiredTags as string[] | null,
-    }));
+  const activeCampaigns = assignments.filter((a) => a.campaign.status === 'active');
+
+  // Get clip counts for each campaign
+  const campaignsWithCounts = await Promise.all(
+    activeCampaigns.map(async (a) => {
+      const clipCount = await db.query.clips.findMany({
+        where: and(
+          eq(clips.campaignId, a.campaign.id),
+          eq(clips.clipperId, clipperId),
+        ),
+        columns: { id: true },
+      });
+
+      return {
+        id: a.campaign.id,
+        name: a.campaign.name,
+        brandName: a.campaign.brandName,
+        assignedTier: a.assignedTier,
+        requiredTags: a.campaign.requiredTags as string[] | null,
+        maxClipsPerClipper: a.campaign.maxClipsPerClipper || 0,
+        submittedClips: clipCount.length,
+      };
+    })
+  );
+
+  return campaignsWithCounts;
 }
 
 export default async function SubmitClipPage() {

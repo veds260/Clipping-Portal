@@ -21,6 +21,14 @@ export async function runStartupMigrations() {
       END $$;
     `);
 
+    // Add max_clips_per_clipper column if missing
+    await db.execute(sql`
+      DO $$ BEGIN
+        ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS max_clips_per_clipper INTEGER DEFAULT 0;
+      EXCEPTION WHEN duplicate_column THEN NULL;
+      END $$;
+    `);
+
     // Ensure 'unassigned' tier enum value exists
     await db.execute(sql`
       DO $$ BEGIN

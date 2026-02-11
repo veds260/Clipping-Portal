@@ -25,6 +25,8 @@ interface Campaign {
   brandName: string | null;
   assignedTier: string;
   requiredTags: string[] | null;
+  maxClipsPerClipper: number;
+  submittedClips: number;
 }
 
 interface SubmitClipFormProps {
@@ -243,19 +245,24 @@ export function SubmitClipForm({ campaigns }: SubmitClipFormProps) {
                 <SelectValue placeholder="Select a campaign" />
               </SelectTrigger>
               <SelectContent>
-                {campaigns.map((campaign) => (
-                  <SelectItem key={campaign.id} value={campaign.id}>
-                    <div className="flex items-center gap-2">
-                      <span>{campaign.name}</span>
-                      {campaign.brandName && (
-                        <span className="text-muted-foreground">({campaign.brandName})</span>
-                      )}
-                      <Badge className={tierColors[campaign.assignedTier]} variant="outline">
-                        {tierLabels[campaign.assignedTier]}
-                      </Badge>
-                    </div>
-                  </SelectItem>
-                ))}
+                {campaigns.map((campaign) => {
+                  const atLimit = campaign.maxClipsPerClipper > 0 && campaign.submittedClips >= campaign.maxClipsPerClipper;
+                  return (
+                    <SelectItem key={campaign.id} value={campaign.id} disabled={atLimit}>
+                      <div className="flex items-center gap-2">
+                        <span>{campaign.name}</span>
+                        {campaign.brandName && (
+                          <span className="text-muted-foreground">({campaign.brandName})</span>
+                        )}
+                        {campaign.maxClipsPerClipper > 0 && (
+                          <span className={`text-xs ${atLimit ? 'text-red-400' : 'text-muted-foreground'}`}>
+                            {campaign.submittedClips}/{campaign.maxClipsPerClipper} clips
+                          </span>
+                        )}
+                      </div>
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
             {campaigns.length === 0 && (
@@ -263,6 +270,21 @@ export function SubmitClipForm({ campaigns }: SubmitClipFormProps) {
                 No campaigns available. Admins will assign you to campaigns when ready.
               </p>
             )}
+            {campaignId && (() => {
+              const selected = campaigns.find(c => c.id === campaignId);
+              if (selected?.maxClipsPerClipper && selected.maxClipsPerClipper > 0) {
+                const remaining = selected.maxClipsPerClipper - selected.submittedClips;
+                return (
+                  <p className={`text-sm ${remaining <= 0 ? 'text-red-400' : 'text-muted-foreground'}`}>
+                    {remaining <= 0
+                      ? 'You have reached the clip limit for this campaign.'
+                      : `${remaining} clip${remaining === 1 ? '' : 's'} remaining for this campaign.`
+                    }
+                  </p>
+                );
+              }
+              return null;
+            })()}
           </div>
         </CardContent>
       </Card>

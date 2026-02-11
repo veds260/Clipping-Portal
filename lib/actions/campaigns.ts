@@ -31,6 +31,9 @@ const campaignSchema = z.object({
   tier2MaxPerCampaign: z.number().min(0).optional(),
   tier3MaxPerCampaign: z.number().min(0).optional(),
 
+  // Clip limit
+  maxClipsPerClipper: z.number().min(0).default(0),
+
   // Tag patterns
   requiredTags: z.array(z.string()).optional(),
 });
@@ -65,6 +68,7 @@ export async function createCampaign(data: CampaignFormData) {
       tier1MaxPerCampaign: validated.tier1MaxPerCampaign?.toString(),
       tier2MaxPerCampaign: validated.tier2MaxPerCampaign?.toString(),
       tier3MaxPerCampaign: validated.tier3MaxPerCampaign?.toString(),
+      maxClipsPerClipper: validated.maxClipsPerClipper || 0,
       requiredTags: validated.requiredTags || [],
     }).returning();
 
@@ -109,6 +113,7 @@ export async function updateCampaign(campaignId: string, data: CampaignFormData)
         tier1MaxPerCampaign: validated.tier1MaxPerCampaign?.toString(),
         tier2MaxPerCampaign: validated.tier2MaxPerCampaign?.toString(),
         tier3MaxPerCampaign: validated.tier3MaxPerCampaign?.toString(),
+        maxClipsPerClipper: validated.maxClipsPerClipper || 0,
         requiredTags: validated.requiredTags || [],
         updatedAt: new Date(),
       })

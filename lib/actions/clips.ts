@@ -43,6 +43,24 @@ export async function submitClip(data: z.infer<typeof submitClipSchema>) {
       return { error: 'You are not assigned to this campaign' };
     }
 
+    // Check max clips per clipper limit
+    const campaign = await db.query.campaigns.findFirst({
+      where: eq(campaigns.id, validated.campaignId),
+    });
+
+    if (campaign?.maxClipsPerClipper && campaign.maxClipsPerClipper > 0) {
+      const clipperClipsInCampaign = await db.query.clips.findMany({
+        where: and(
+          eq(clips.campaignId, validated.campaignId),
+          eq(clips.clipperId, clipperProfile.id),
+        ),
+      });
+
+      if (clipperClipsInCampaign.length >= campaign.maxClipsPerClipper) {
+        return { error: `You have reached the maximum of ${campaign.maxClipsPerClipper} clips for this campaign` };
+      }
+    }
+
     // Parse tweet ID from URL
     const tweetId = parseTweetId(validated.platformPostUrl);
     if (!tweetId) {
@@ -68,11 +86,7 @@ export async function submitClip(data: z.infer<typeof submitClipSchema>) {
     // Fetch tweet metrics via Twitter API
     const tweetData = await fetchTweetByUrl(validated.platformPostUrl);
 
-    // Get campaign for tag compliance
-    const campaign = await db.query.campaigns.findFirst({
-      where: eq(campaigns.id, validated.campaignId),
-    });
-
+    // Use already-fetched campaign for tag compliance
     let tagCompliance = null;
     if (tweetData && campaign?.requiredTags && (campaign.requiredTags as string[]).length > 0) {
       tagCompliance = checkTagCompliance(

@@ -40,6 +40,7 @@ interface CampaignFormProps {
     tier1MaxPerCampaign: string | null;
     tier2MaxPerCampaign: string | null;
     tier3MaxPerCampaign: string | null;
+    maxClipsPerClipper: number | null;
     requiredTags: string[] | null;
   };
 }
@@ -72,6 +73,9 @@ export function CampaignForm({ campaign }: CampaignFormProps) {
     tier1MaxPerCampaign: parseFloat(campaign?.tier1MaxPerCampaign || '0') || 0,
     tier2MaxPerCampaign: parseFloat(campaign?.tier2MaxPerCampaign || '0') || 0,
     tier3MaxPerCampaign: parseFloat(campaign?.tier3MaxPerCampaign || '0') || 0,
+
+    // Clip limit
+    maxClipsPerClipper: campaign?.maxClipsPerClipper || 0,
 
     // Tags
     requiredTags: (campaign?.requiredTags as string[]) || [],
@@ -118,6 +122,7 @@ export function CampaignForm({ campaign }: CampaignFormProps) {
       tier1MaxPerCampaign: formData.tier1MaxPerCampaign || undefined,
       tier2MaxPerCampaign: formData.tier2MaxPerCampaign || undefined,
       tier3MaxPerCampaign: formData.tier3MaxPerCampaign || undefined,
+      maxClipsPerClipper: formData.maxClipsPerClipper,
       requiredTags: formData.requiredTags,
     };
 
@@ -209,7 +214,7 @@ export function CampaignForm({ campaign }: CampaignFormProps) {
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <div className="space-y-2">
                 <Label htmlFor="startDate">Start Date</Label>
                 <Input
@@ -239,6 +244,21 @@ export function CampaignForm({ campaign }: CampaignFormProps) {
                   value={formData.budgetCap}
                   onChange={(e) => setFormData({ ...formData, budgetCap: parseFloat(e.target.value) || 0 })}
                   placeholder="0.00"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Leave at 0 for unlimited
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="maxClipsPerClipper">Max Clips Per Clipper</Label>
+                <Input
+                  id="maxClipsPerClipper"
+                  type="number"
+                  min="0"
+                  value={formData.maxClipsPerClipper}
+                  onChange={(e) => setFormData({ ...formData, maxClipsPerClipper: parseInt(e.target.value) || 0 })}
+                  placeholder="0"
                 />
                 <p className="text-xs text-muted-foreground">
                   Leave at 0 for unlimited

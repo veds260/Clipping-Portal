@@ -77,6 +77,9 @@ export const campaigns = pgTable('campaigns', {
   tier2MaxPerCampaign: decimal('tier2_max_per_campaign', { precision: 10, scale: 2 }),
   tier3MaxPerCampaign: decimal('tier3_max_per_campaign', { precision: 10, scale: 2 }),
 
+  // Clip submission limit per clipper (0 = unlimited)
+  maxClipsPerClipper: integer('max_clips_per_clipper').default(0),
+
   // Tag detection
   requiredTags: jsonb('required_tags').$type<string[]>().default([]),
 
