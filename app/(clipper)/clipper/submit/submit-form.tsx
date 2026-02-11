@@ -289,10 +289,10 @@ export function SubmitClipForm({ campaigns }: SubmitClipFormProps) {
                         : `$${parseFloat(selected.tier1CpmRate || '0').toFixed(2)} per 1K views`}
                   </p>
                   {selected.announcement && (
-                    <div className="flex items-start gap-2 p-2 rounded-md border border-yellow-700/50 bg-yellow-900/20 text-sm">
-                      <span className="text-yellow-500 mt-0.5">!</span>
-                      <p className="text-muted-foreground whitespace-pre-wrap">{selected.announcement}</p>
-                    </div>
+                    <p className="text-xs text-yellow-400/80 mt-1">
+                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-yellow-500 mr-1.5 align-middle" />
+                      {selected.announcement}
+                    </p>
                   )}
                   {selected.notionUrl && (
                     <a

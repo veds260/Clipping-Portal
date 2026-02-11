@@ -142,21 +142,6 @@ export default async function ClipperDashboard() {
     <div className="p-8">
       <CampaignAnnouncements announcements={announcements} />
 
-      {/* Persistent announcement banners */}
-      {announcements.length > 0 && (
-        <div className="space-y-3 mb-6">
-          {announcements.map((a) => (
-            <div key={a.campaignId} className="flex items-start gap-3 p-4 rounded-lg border border-yellow-700/50 bg-yellow-900/20">
-              <span className="text-yellow-500 mt-0.5 text-lg">!</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-yellow-400">{a.campaignName}</p>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{a.announcement}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Welcome to Web3 Clipping!</h1>
         <p className="text-muted-foreground">
@@ -277,6 +262,12 @@ export default async function ClipperDashboard() {
                         </>
                       )}
                     </div>
+                    {item.campaign.announcement && (
+                      <p className="text-xs text-yellow-400/80 mt-1.5 line-clamp-2">
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-yellow-500 mr-1.5 align-middle" />
+                        {item.campaign.announcement}
+                      </p>
+                    )}
                     {item.campaign.notionUrl && (
                       <a
                         href={item.campaign.notionUrl}
