@@ -24,6 +24,48 @@ export interface TagComplianceResult {
 }
 
 /**
+ * Fetch Twitter user profile image by handle
+ */
+export async function fetchTwitterProfileImage(handle: string): Promise<string | null> {
+  const apiKey = process.env.TWITTER_API_KEY;
+  if (!apiKey) {
+    console.error('TWITTER_API_KEY not set');
+    return null;
+  }
+
+  const username = handle.replace(/^@/, '');
+
+  try {
+    const response = await fetch(
+      `${TWITTER_API_BASE}/twitter/user/info?userName=${encodeURIComponent(username)}`,
+      { headers: { 'X-API-Key': apiKey } }
+    );
+
+    if (!response.ok) {
+      console.error(`Twitter API error: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const profileImageUrl =
+      data.data?.profilePicture ||
+      data.data?.profileImageUrl ||
+      data.data?.profile_image_url_https ||
+      data.profilePicture ||
+      null;
+
+    if (profileImageUrl) {
+      return profileImageUrl.replace('_normal', '_400x400');
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Failed to fetch Twitter profile:', error);
+    return null;
+  }
+}
+
+/**
  * Parse tweet ID from various Twitter/X URL formats:
  * - https://twitter.com/user/status/123456789
  * - https://x.com/user/status/123456789

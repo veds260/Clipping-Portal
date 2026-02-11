@@ -96,18 +96,6 @@ function formatCurrency(num: number | string | null): string {
   }).format(value);
 }
 
-const tierColors: Record<string, string> = {
-  tier1: 'bg-emerald-900/30 text-emerald-400 border-emerald-700',
-  tier2: 'bg-blue-900/30 text-blue-400 border-blue-700',
-  tier3: 'bg-purple-900/30 text-purple-400 border-purple-700',
-};
-
-const tierLabels: Record<string, string> = {
-  tier1: 'Tier 1',
-  tier2: 'Tier 2',
-  tier3: 'Tier 3',
-};
-
 const statusColors: Record<string, string> = {
   pending: 'bg-yellow-900/30 text-yellow-400 border-yellow-700',
   approved: 'bg-green-900/30 text-green-400 border-green-700',
@@ -229,9 +217,6 @@ export default async function ClipperDashboard() {
                         <p className="text-sm font-medium truncate">
                           {item.campaign.name}
                         </p>
-                        <Badge className={tierColors[item.assignedTier]} variant="outline">
-                          {tierLabels[item.assignedTier]}
-                        </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground">
                         {item.clipCount} clips submitted &middot; {item.approvedCount} approved

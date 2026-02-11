@@ -56,7 +56,7 @@ async function migrate() {
   // ============================================================
   console.log('Updating enums...');
 
-  for (const val of ['tier1', 'tier2', 'tier3']) {
+  for (const val of ['unassigned', 'tier1', 'tier2', 'tier3']) {
     if (!(await enumValueExists('clipper_tier', val))) {
       await sql.unsafe(`ALTER TYPE clipper_tier ADD VALUE IF NOT EXISTS '${val}'`);
       console.log(`  Added '${val}' to clipper_tier enum`);
@@ -219,6 +219,20 @@ async function migrate() {
   await sql`UPDATE clipper_profiles SET tier = 'tier2' WHERE tier = 'approved'`;
   await sql`UPDATE clipper_profiles SET tier = 'tier3' WHERE tier = 'core'`;
   console.log('  Updated clipper tier values');
+
+  // ============================================================
+  // 9. Add wallet_address column to clipper_profiles
+  // ============================================================
+  console.log('Adding wallet_address column...');
+
+  if (!(await columnExists('clipper_profiles', 'wallet_address'))) {
+    await sql.unsafe(`ALTER TABLE clipper_profiles ADD COLUMN wallet_address VARCHAR(255)`);
+    console.log('  Added clipper_profiles.wallet_address');
+  }
+
+  // Set default tier to unassigned for new clippers
+  await sql.unsafe(`ALTER TABLE clipper_profiles ALTER COLUMN tier SET DEFAULT 'unassigned'`);
+  console.log('  Updated default tier to unassigned');
 
   console.log('Migration completed successfully!');
   await sql.end();

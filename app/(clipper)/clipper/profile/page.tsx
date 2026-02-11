@@ -9,13 +9,14 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from 'sonner';
-import { User, Mail, AtSign, MessageCircle } from 'lucide-react';
+import { User, Mail, AtSign, MessageCircle, Wallet } from 'lucide-react';
 
 export default function ProfilePage() {
   const { data: session, update } = useSession();
   const [isLoading, setIsLoading] = useState(false);
   const [profileData, setProfileData] = useState<{
     telegramHandle: string;
+    walletAddress: string;
     tier: string;
     status: string;
   } | null>(null);
@@ -37,7 +38,7 @@ export default function ProfilePage() {
     fetchProfile();
   }, []);
 
-  const handleUpdateTelegram = async (e: React.FormEvent) => {
+  const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profileData) return;
 
@@ -46,7 +47,10 @@ export default function ProfilePage() {
       const res = await fetch('/api/clipper/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ telegramHandle: profileData.telegramHandle }),
+        body: JSON.stringify({
+          telegramHandle: profileData.telegramHandle,
+          walletAddress: profileData.walletAddress,
+        }),
       });
 
       if (res.ok) {
@@ -59,12 +63,6 @@ export default function ProfilePage() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const tierColors: Record<string, string> = {
-    tier1: 'bg-emerald-900/30 text-emerald-400 border-emerald-700',
-    tier2: 'bg-blue-900/30 text-blue-400 border-blue-700',
-    tier3: 'bg-purple-900/30 text-purple-400 border-purple-700',
   };
 
   const statusColors: Record<string, string> = {
@@ -120,63 +118,65 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
-        {/* Clipper Status */}
+        {/* Account Status */}
         <Card>
           <CardHeader>
-            <CardTitle>Clipper Status</CardTitle>
-            <CardDescription>
-              Your current tier and account status
-            </CardDescription>
+            <CardTitle>Account Status</CardTitle>
+            <CardDescription>Your current account status</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Tier</span>
-                <Badge className={tierColors[profileData?.tier || 'tier1']} variant="outline">
-                  {profileData?.tier || 'tier1'}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Status</span>
-                <Badge className={statusColors[profileData?.status || 'pending']} variant="outline">
-                  {profileData?.status || 'pending'}
-                </Badge>
-              </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Status</span>
+              <Badge className={statusColors[profileData?.status || 'pending']} variant="outline">
+                {profileData?.status || 'pending'}
+              </Badge>
             </div>
           </CardContent>
         </Card>
 
-        {/* Contact Info */}
+        {/* Payout Information */}
         <Card>
           <CardHeader>
-            <CardTitle>Contact Information</CardTitle>
-            <CardDescription>
-              How we can reach you for payouts
-            </CardDescription>
+            <CardTitle>Payout Information</CardTitle>
+            <CardDescription>Where to receive your earnings</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleUpdateTelegram} className="space-y-4">
+            <form onSubmit={handleUpdateProfile} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="telegram">Telegram Handle</Label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <MessageCircle className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="telegram"
-                      placeholder="@username"
-                      value={profileData?.telegramHandle || ''}
-                      onChange={(e) => setProfileData(prev => prev ? { ...prev, telegramHandle: e.target.value } : null)}
-                      className="pl-10"
-                    />
-                  </div>
-                  <Button type="submit" disabled={isLoading}>
-                    {isLoading ? 'Saving...' : 'Save'}
-                  </Button>
+                <Label htmlFor="walletAddress">Wallet Address</Label>
+                <div className="relative">
+                  <Wallet className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="walletAddress"
+                    placeholder="0x... or SOL address"
+                    value={profileData?.walletAddress || ''}
+                    onChange={(e) => setProfileData(prev => prev ? { ...prev, walletAddress: e.target.value } : null)}
+                    className="pl-10"
+                  />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Payouts are coordinated via Telegram. Make sure this is accurate.
+                  Payouts are sent to this wallet address. Make sure it is correct.
                 </p>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="telegram">Telegram (optional)</Label>
+                <div className="relative">
+                  <MessageCircle className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="telegram"
+                    placeholder="@username"
+                    value={profileData?.telegramHandle || ''}
+                    onChange={(e) => setProfileData(prev => prev ? { ...prev, telegramHandle: e.target.value } : null)}
+                    className="pl-10"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Optional contact for communication with the team.
+                </p>
+              </div>
+              <Button type="submit" disabled={isLoading} className="w-full">
+                {isLoading ? 'Saving...' : 'Save Changes'}
+              </Button>
             </form>
           </CardContent>
         </Card>
@@ -187,15 +187,9 @@ export default function ProfilePage() {
             <CardTitle>Important Notes</CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground space-y-2">
-            <p>
-              Payments are processed outside this platform via Telegram or crypto.
-            </p>
-            <p>
-              Keep your contact information up to date to receive payouts.
-            </p>
-            <p>
-              If you have questions about your account, reach out to the admin team.
-            </p>
+            <p>Payouts are sent to the wallet address you provide above.</p>
+            <p>Keep your wallet address up to date to receive payouts on time.</p>
+            <p>If you have questions about your account, reach out to the admin team.</p>
           </CardContent>
         </Card>
       </div>

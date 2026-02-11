@@ -3,7 +3,7 @@ import { relations } from 'drizzle-orm';
 
 // Enums
 export const userRoleEnum = pgEnum('user_role', ['admin', 'clipper']);
-export const clipperTierEnum = pgEnum('clipper_tier', ['tier1', 'tier2', 'tier3']);
+export const clipperTierEnum = pgEnum('clipper_tier', ['unassigned', 'tier1', 'tier2', 'tier3']);
 export const clipperStatusEnum = pgEnum('clipper_status', ['active', 'suspended', 'pending']);
 export const campaignStatusEnum = pgEnum('campaign_status', ['draft', 'active', 'paused', 'completed']);
 export const platformEnum = pgEnum('platform', ['tiktok', 'instagram', 'youtube_shorts', 'twitter']);
@@ -32,8 +32,9 @@ export const users = pgTable('users', {
 export const clipperProfiles = pgTable('clipper_profiles', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
-  tier: clipperTierEnum('tier').default('tier1'),
+  tier: clipperTierEnum('tier').default('unassigned'),
   telegramHandle: varchar('telegram_handle', { length: 100 }),
+  walletAddress: varchar('wallet_address', { length: 255 }),
   totalViews: bigint('total_views', { mode: 'number' }).default(0),
   totalEarnings: decimal('total_earnings', { precision: 10, scale: 2 }).default('0'),
   clipsSubmitted: integer('clips_submitted').default(0),

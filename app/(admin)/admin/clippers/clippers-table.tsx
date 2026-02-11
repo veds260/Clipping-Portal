@@ -37,7 +37,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
-import { MoreHorizontal, Eye, Film, DollarSign, TrendingUp, Key, Trash2, Mail } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { MoreHorizontal, Eye, Film, DollarSign, TrendingUp, Key, Trash2, Mail, Wallet } from 'lucide-react';
 import { updateClipperTier, updateClipperStatus, updateClipperNotes } from '@/lib/actions/clippers';
 import { updateUserPassword, updateUserEmail, deleteClipperData } from '@/lib/actions/admin-users';
 import { format } from 'date-fns';
@@ -55,11 +56,13 @@ interface Clipper {
   notes: string | null;
   onboardedAt: Date | null;
   createdAt: Date | null;
+  walletAddress: string | null;
   user: {
     id: string;
     name: string | null;
     email: string;
     twitterHandle: string | null;
+    avatarUrl: string | null;
   };
 }
 
@@ -68,12 +71,14 @@ interface ClippersTableProps {
 }
 
 const tierColors: Record<string, string> = {
+  unassigned: 'bg-gray-100/50 text-gray-500',
   tier1: 'bg-gray-100 text-gray-800',
   tier2: 'bg-blue-100 text-blue-800',
   tier3: 'bg-purple-100 text-purple-800',
 };
 
 const tierLabels: Record<string, string> = {
+  unassigned: 'No Tier',
   tier1: 'Tier 1',
   tier2: 'Tier 2',
   tier3: 'Tier 3',
@@ -120,7 +125,7 @@ export function ClippersTable({ clippers }: ClippersTableProps) {
     if (!selectedClipper || !selectedTier) return;
 
     setIsLoading(true);
-    const result = await updateClipperTier(selectedClipper.id, selectedTier as 'tier1' | 'tier2' | 'tier3');
+    const result = await updateClipperTier(selectedClipper.id, selectedTier as 'unassigned' | 'tier1' | 'tier2' | 'tier3');
     setIsLoading(false);
 
     if (result.error) {
@@ -152,7 +157,7 @@ export function ClippersTable({ clippers }: ClippersTableProps) {
 
   const openTierDialog = (clipper: Clipper) => {
     setSelectedClipper(clipper);
-    setSelectedTier(clipper.tier || 'tier1');
+    setSelectedTier(clipper.tier || 'unassigned');
     setTierDialogOpen(true);
   };
 
@@ -287,20 +292,31 @@ export function ClippersTable({ clippers }: ClippersTableProps) {
               filteredClippers.map((clipper) => (
                 <TableRow key={clipper.id}>
                   <TableCell>
-                    <div>
-                      <p className="font-medium">{clipper.user.name || 'Unnamed'}</p>
-                      <p className="text-xs text-muted-foreground">{clipper.user.email}</p>
-                      {clipper.user.twitterHandle && (
-                        <p className="text-xs text-blue-500">@{clipper.user.twitterHandle}</p>
-                      )}
-                      {clipper.telegramHandle && (
-                        <p className="text-xs text-muted-foreground">TG: {clipper.telegramHandle}</p>
-                      )}
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-9 w-9">
+                        <AvatarImage src={clipper.user.avatarUrl || undefined} />
+                        <AvatarFallback className="text-xs bg-muted">
+                          {clipper.user.name?.charAt(0).toUpperCase() || 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{clipper.user.name || 'Unnamed'}</p>
+                        <p className="text-xs text-muted-foreground">{clipper.user.email}</p>
+                        {clipper.user.twitterHandle && (
+                          <p className="text-xs text-blue-500">@{clipper.user.twitterHandle}</p>
+                        )}
+                        {clipper.walletAddress && (
+                          <p className="text-xs text-muted-foreground font-mono flex items-center gap-1">
+                            <Wallet className="h-3 w-3" />
+                            {clipper.walletAddress.slice(0, 6)}...{clipper.walletAddress.slice(-4)}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge className={tierColors[clipper.tier || 'tier1']} variant="outline">
-                      {tierLabels[clipper.tier || 'tier1'] || clipper.tier || 'Tier 1'}
+                    <Badge className={tierColors[clipper.tier || 'unassigned']} variant="outline">
+                      {tierLabels[clipper.tier || 'unassigned'] || 'No Tier'}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -407,6 +423,7 @@ export function ClippersTable({ clippers }: ClippersTableProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="unassigned">No Tier (Unassigned)</SelectItem>
                   <SelectItem value="tier1">Tier 1</SelectItem>
                   <SelectItem value="tier2">Tier 2</SelectItem>
                   <SelectItem value="tier3">Tier 3</SelectItem>

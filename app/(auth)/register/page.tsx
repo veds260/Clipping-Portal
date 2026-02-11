@@ -19,6 +19,7 @@ export default function RegisterPage() {
     confirmPassword: '',
     twitterHandle: '',
     telegramHandle: '',
+    walletAddress: '',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -60,6 +61,7 @@ export default function RegisterPage() {
           password: formData.password,
           twitterHandle: formData.twitterHandle,
           telegramHandle: formData.telegramHandle || undefined,
+          walletAddress: formData.walletAddress || undefined,
         }),
       });
 
@@ -94,8 +96,8 @@ export default function RegisterPage() {
     <Card className="w-full max-w-md">
       <CardHeader className="space-y-4">
         <div className="flex justify-center">
-          <span className="text-2xl font-bold tracking-tight">
-            <span className="text-primary">Web3</span> Clipping
+          <span className="text-2xl font-black tracking-widest uppercase">
+            W<span className="text-primary">3</span>C
           </span>
         </div>
         <CardDescription className="text-center">
@@ -152,6 +154,21 @@ export default function RegisterPage() {
             />
             <p className="text-xs text-muted-foreground">
               Required for clip verification. We match your tweets against this handle.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="walletAddress">Wallet Address (optional)</Label>
+            <Input
+              id="walletAddress"
+              name="walletAddress"
+              type="text"
+              placeholder="0x... or SOL address"
+              value={formData.walletAddress}
+              onChange={handleChange}
+              disabled={isLoading}
+            />
+            <p className="text-xs text-muted-foreground">
+              For receiving payouts. You can add this later in your profile.
             </p>
           </div>
           <div className="space-y-2">

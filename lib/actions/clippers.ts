@@ -7,7 +7,7 @@ import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import bcrypt from 'bcryptjs';
 
-export async function updateClipperTier(clipperId: string, tier: 'tier1' | 'tier2' | 'tier3') {
+export async function updateClipperTier(clipperId: string, tier: 'unassigned' | 'tier1' | 'tier2' | 'tier3') {
   const session = await auth();
   if (!session || session.user.role !== 'admin') {
     return { error: 'Unauthorized' };

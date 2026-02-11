@@ -8,18 +8,6 @@ import { Badge } from '@/components/ui/badge';
 
 export const dynamic = 'force-dynamic';
 
-const tierColors: Record<string, string> = {
-  tier1: 'bg-emerald-900/30 text-emerald-400 border-emerald-700',
-  tier2: 'bg-blue-900/30 text-blue-400 border-blue-700',
-  tier3: 'bg-purple-900/30 text-purple-400 border-purple-700',
-};
-
-const tierLabels: Record<string, string> = {
-  tier1: 'Tier 1',
-  tier2: 'Tier 2',
-  tier3: 'Tier 3',
-};
-
 export default async function GuidelinesPage() {
   const session = await auth();
   if (!session) redirect('/login');
@@ -58,41 +46,30 @@ export default async function GuidelinesPage() {
       </div>
 
       <div className="space-y-6">
-        {/* Tier System Explanation */}
+        {/* How Payment Works */}
         <Card>
           <CardHeader>
             <CardTitle>How Payment Works</CardTitle>
-            <CardDescription>Each campaign has its own tier-based rates</CardDescription>
+            <CardDescription>Your earnings are based on your performance</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-3">
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Earnings are calculated based on how your clips perform. Better performing clips and consistent quality lead to better rates over time.
+            </p>
+            <div className="grid gap-4 md:grid-cols-2">
               <div className="p-4 border rounded-lg">
-                <Badge className={tierColors.tier1} variant="outline">Tier 1</Badge>
-                <h3 className="font-medium mt-2 mb-1 text-sm">CPM Based (Lower)</h3>
+                <h3 className="font-medium text-sm mb-1">Views-Based Earnings</h3>
                 <p className="text-sm text-muted-foreground">
-                  Earn per 1,000 views at the campaign's Tier 1 CPM rate. Great for getting started.
+                  Most clips earn based on the number of views they get. The more views, the more you earn.
                 </p>
               </div>
-
               <div className="p-4 border rounded-lg">
-                <Badge className={tierColors.tier2} variant="outline">Tier 2</Badge>
-                <h3 className="font-medium mt-2 mb-1 text-sm">CPM Based (Higher)</h3>
+                <h3 className="font-medium text-sm mb-1">Performance Growth</h3>
                 <p className="text-sm text-muted-foreground">
-                  Higher CPM rate per 1,000 views. Assigned to proven clippers with good track records.
-                </p>
-              </div>
-
-              <div className="p-4 border rounded-lg">
-                <Badge className={tierColors.tier3} variant="outline">Tier 3</Badge>
-                <h3 className="font-medium mt-2 mb-1 text-sm">Fixed Rate Per Clip</h3>
-                <p className="text-sm text-muted-foreground">
-                  Fixed payment per approved clip regardless of views. Reserved for top performers.
+                  As you prove yourself with quality clips and consistent results, your earning potential increases.
                 </p>
               </div>
             </div>
-            <p className="text-sm text-muted-foreground mt-4">
-              Admins assign your tier per campaign. Anti-gaming caps may limit max earnings per clip and per campaign.
-            </p>
           </CardContent>
         </Card>
 
@@ -112,9 +89,6 @@ export default async function GuidelinesPage() {
                   <div key={assignment.id} className="p-4 border rounded-lg space-y-3">
                     <div className="flex items-center justify-between">
                       <h3 className="font-medium">{campaign.name}</h3>
-                      <Badge className={tierColors[assignment.assignedTier]} variant="outline">
-                        {tierLabels[assignment.assignedTier]}
-                      </Badge>
                     </div>
 
                     {campaign.description && (

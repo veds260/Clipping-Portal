@@ -318,12 +318,11 @@ export default async function ClipperEarningsPage() {
         </CardHeader>
         <CardContent className="prose prose-sm max-w-none">
           <ul className="space-y-2 text-muted-foreground">
-            <li><strong className="text-foreground">Tier 1 (CPM):</strong> Earnings are calculated per 1,000 views. The CPM rate is set per campaign by the admin. Each clip and total campaign earnings may have caps.</li>
-            <li><strong className="text-foreground">Tier 2 (CPM):</strong> Same as Tier 1 but with a different CPM rate. Tier 2 rates and caps are configured per campaign.</li>
-            <li><strong className="text-foreground">Tier 3 (Fixed):</strong> You earn a fixed amount per approved clip, regardless of view count. The fixed rate is set per campaign.</li>
+            <li>Your earnings are calculated based on clip performance and your current rate</li>
             <li>Payout batches are generated periodically by admins after reviewing clips</li>
             <li>You can see real-time views on your clips, but earnings only show up after the admin approves a payout batch</li>
-            <li>Payments are made via Telegram (not through this platform)</li>
+            <li>Better performance leads to higher earning rates over time</li>
+            <li>Payouts are sent to the wallet address on your profile</li>
           </ul>
         </CardContent>
       </Card>

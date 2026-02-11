@@ -51,8 +51,8 @@ function LoginForm() {
     <Card className="w-full max-w-md">
       <CardHeader className="space-y-4">
         <div className="flex justify-center">
-          <span className="text-2xl font-bold tracking-tight">
-            <span className="text-primary">Web3</span> Clipping
+          <span className="text-2xl font-black tracking-widest uppercase">
+            W<span className="text-primary">3</span>C
           </span>
         </div>
         <CardDescription className="text-center">
