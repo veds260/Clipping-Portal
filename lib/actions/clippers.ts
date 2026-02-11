@@ -2,7 +2,7 @@
 
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { clipperProfiles, users } from '@/lib/db/schema';
+import { clipperProfiles, users, campaignClipperAssignments } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import bcrypt from 'bcryptjs';
@@ -22,7 +22,16 @@ export async function updateClipperTier(clipperId: string, tier: 'unassigned' | 
       })
       .where(eq(clipperProfiles.id, clipperId));
 
+    // Also update all campaign assignments for this clipper
+    if (tier !== 'unassigned') {
+      await db
+        .update(campaignClipperAssignments)
+        .set({ assignedTier: tier })
+        .where(eq(campaignClipperAssignments.clipperId, clipperId));
+    }
+
     revalidatePath('/admin/clippers');
+    revalidatePath('/admin/campaigns');
     return { success: true };
   } catch (error) {
     console.error('Error updating clipper tier:', error);
