@@ -117,10 +117,19 @@ export function ClippersTable({ clippers, campaigns = [] }: ClippersTableProps) 
   const [newEmail, setNewEmail] = useState('');
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
-  const filteredClippers = filter === 'all'
-    ? clippers
-    : clippers.filter(c => c.status === filter);
+  const filteredClippers = clippers.filter(c => {
+    const matchesStatus = filter === 'all' || c.status === filter;
+    if (!matchesStatus) return false;
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    return (
+      (c.user.name || '').toLowerCase().includes(term) ||
+      (c.user.twitterHandle || '').toLowerCase().includes(term) ||
+      c.user.email.toLowerCase().includes(term)
+    );
+  });
 
   const handleStatusChange = async (clipperId: string, status: 'active' | 'suspended' | 'pending') => {
     setIsLoading(true);
@@ -293,17 +302,25 @@ export function ClippersTable({ clippers, campaigns = [] }: ClippersTableProps) 
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2">
-        {['all', 'active', 'pending', 'suspended'].map((status) => (
-          <Button
-            key={status}
-            variant={filter === status ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setFilter(status)}
-          >
-            {status.charAt(0).toUpperCase() + status.slice(1)}
-          </Button>
-        ))}
+      <div className="flex items-center gap-4">
+        <Input
+          placeholder="Search by name, email, or Twitter handle..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="max-w-sm"
+        />
+        <div className="flex gap-2">
+          {['all', 'active', 'pending', 'suspended'].map((status) => (
+            <Button
+              key={status}
+              variant={filter === status ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFilter(status)}
+            >
+              {status.charAt(0).toUpperCase() + status.slice(1)}
+            </Button>
+          ))}
+        </div>
       </div>
 
       <div className="rounded-md border">
