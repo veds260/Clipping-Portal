@@ -263,7 +263,7 @@ export default async function ClipperDashboard() {
                       )}
                     </div>
                     {item.campaign.announcement && (
-                      <p className="text-xs text-yellow-400/80 mt-1.5 line-clamp-2">
+                      <p className="text-xs text-yellow-400/80 mt-1.5 whitespace-pre-wrap">
                         <span className="inline-block w-1.5 h-1.5 rounded-full bg-yellow-500 mr-1.5 align-middle" />
                         {item.campaign.announcement}
                       </p>
