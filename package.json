@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "(npx tsx scripts/migrate.ts &) && next start -p ${PORT:-3000}",
+    "start": "npx drizzle-kit push --force && npx tsx scripts/migrate.ts && next start -p ${PORT:-3000}",
     "lint": "eslint",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
@@ -52,7 +52,8 @@
     "tailwind-merge": "^3.4.0",
     "tsx": "^4.21.0",
     "zod": "^4.2.0",
-    "zustand": "^5.0.9"
+    "zustand": "^5.0.9",
+    "drizzle-kit": "^0.31.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -60,7 +61,6 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "drizzle-kit": "^0.31.8",
     "eslint": "^9",
     "eslint-config-next": "16.0.10",
     "tailwindcss": "^4",
