@@ -274,10 +274,16 @@ async function migrate() {
   // ============================================================
   console.log('Updating existing tier values...');
 
-  await sql`UPDATE clipper_profiles SET tier = 'tier1' WHERE tier = 'entry'`;
-  await sql`UPDATE clipper_profiles SET tier = 'tier2' WHERE tier = 'approved'`;
-  await sql`UPDATE clipper_profiles SET tier = 'tier3' WHERE tier = 'core'`;
-  console.log('  Updated clipper tier values');
+  // Use text cast to avoid enum validation error on fresh databases
+  // where old values (entry/approved/core) never existed
+  try {
+    await sql`UPDATE clipper_profiles SET tier = 'tier1' WHERE tier::text = 'entry'`;
+    await sql`UPDATE clipper_profiles SET tier = 'tier2' WHERE tier::text = 'approved'`;
+    await sql`UPDATE clipper_profiles SET tier = 'tier3' WHERE tier::text = 'core'`;
+    console.log('  Updated clipper tier values');
+  } catch {
+    console.log('  Skipped tier value migration (old values not present)');
+  }
 
   // ============================================================
   // 9. Add wallet_address column to clipper_profiles
