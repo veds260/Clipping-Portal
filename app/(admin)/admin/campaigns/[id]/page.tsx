@@ -231,29 +231,23 @@ export default async function CampaignDetailPage({
         </Card>
       </div>
 
-      {/* Notion Embed */}
+      {/* Notion Link */}
       {campaign.notionUrl && (
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>Campaign Brief</CardTitle>
-            <CardDescription>
-              <a href={campaign.notionUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
-                Open in Notion <ExternalLink className="h-3 w-3" />
-              </a>
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-lg border overflow-hidden bg-white">
-              <iframe
-                src={campaign.notionUrl.replace('notion.so', 'notion.site').replace(/\?.*$/, '')}
-                className="w-full border-0"
-                style={{ height: '600px' }}
-                loading="lazy"
-                title={`${campaign.name} brief`}
-              />
-            </div>
-          </CardContent>
-        </Card>
+        <a
+          href={campaign.notionUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-3 p-4 mb-8 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10">
+            <svg className="h-5 w-5 text-primary" viewBox="0 0 24 24" fill="currentColor"><path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L18.79 2.46c-.466-.373-.84-.186-1.399.046L4.645 3.602c-.466.093-.56.28-.28.466l.094.14zm.793 1.679v13.87c0 .746.373 1.026 1.213.98l14.523-.84c.84-.046.933-.56.933-1.166V4.954c0-.606-.233-.933-.746-.886l-15.177.886c-.56.047-.746.327-.746.933zm14.337.746c.093.42 0 .84-.42.886l-.7.14v10.264c-.607.327-1.166.514-1.633.514-.746 0-.933-.234-1.493-.934l-4.577-7.186v6.952l1.446.327s0 .84-1.166.84l-3.22.187c-.093-.187 0-.654.327-.747l.84-.22V8.781l-1.166-.093c-.093-.42.14-1.026.793-1.073l3.453-.234 4.763 7.28V8.36l-1.213-.14c-.093-.514.28-.886.746-.933l3.22-.187z"/></svg>
+          </div>
+          <div className="flex-1">
+            <p className="font-medium">Campaign Brief</p>
+            <p className="text-sm text-muted-foreground">View full brief on Notion</p>
+          </div>
+          <ExternalLink className="h-4 w-4 text-muted-foreground" />
+        </a>
       )}
 
       {/* Tabs */}
