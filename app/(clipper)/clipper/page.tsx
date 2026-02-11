@@ -263,10 +263,15 @@ export default async function ClipperDashboard() {
                       )}
                     </div>
                     {item.campaign.announcement && (
-                      <p className="text-xs text-yellow-400/80 mt-1.5 whitespace-pre-wrap">
-                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-yellow-500 mr-1.5 align-middle" />
-                        {item.campaign.announcement}
-                      </p>
+                      <details className="mt-2 text-xs">
+                        <summary className="cursor-pointer text-yellow-400/80 hover:text-yellow-400 flex items-center gap-1.5">
+                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-yellow-500 flex-shrink-0" />
+                          Announcement
+                        </summary>
+                        <p className="mt-1.5 text-muted-foreground whitespace-pre-wrap pl-3">
+                          {item.campaign.announcement}
+                        </p>
+                      </details>
                     )}
                     {item.campaign.notionUrl && (
                       <a
