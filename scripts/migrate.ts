@@ -9,13 +9,20 @@ if (!connectionString) {
   process.exit(1);
 }
 
+// Log DB host for diagnostics (not the full URL for security)
+try {
+  const url = new URL(connectionString!);
+  console.log(`[migrate] Connecting to DB host: ${url.hostname}:${url.port || 5432}`);
+} catch {
+  console.log('[migrate] Could not parse DATABASE_URL');
+}
+
 function createConnection() {
   return postgres(connectionString!, {
     prepare: false,
     max: 1,
     idle_timeout: 30,
     connect_timeout: 30,
-    ssl: { rejectUnauthorized: false },
   });
 }
 
