@@ -169,7 +169,8 @@ export async function fetchTweetByUrl(url: string): Promise<TweetData | null> {
 }
 
 /**
- * Fetch Twitter user location by handle
+ * Fetch verified "Account based in" country from Twitter's transparency data.
+ * This is the real country Twitter determines from IP/phone, not the self-reported location field.
  */
 export async function fetchTwitterUserLocation(handle: string): Promise<string | null> {
   const apiKey = process.env.TWITTER_API_KEY;
@@ -179,19 +180,16 @@ export async function fetchTwitterUserLocation(handle: string): Promise<string |
 
   try {
     const response = await fetch(
-      `${TWITTER_API_BASE}/twitter/user/info?userName=${encodeURIComponent(username)}`,
+      `${TWITTER_API_BASE}/twitter/user_about?userName=${encodeURIComponent(username)}`,
       { headers: { 'X-API-Key': apiKey } }
     );
 
     if (!response.ok) return null;
 
     const data = await response.json();
-    const location =
-      data.data?.location ||
-      data.location ||
-      null;
+    const country = data.data?.about_profile?.account_based_in || null;
 
-    return location && location.trim() ? location.trim() : null;
+    return country && country.trim() ? country.trim() : null;
   } catch (error) {
     console.error('Failed to fetch Twitter user location:', error);
     return null;

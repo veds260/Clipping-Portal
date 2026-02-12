@@ -6,7 +6,7 @@ import { clipperProfiles, clips, users } from '@/lib/db/schema';
 import { eq, isNotNull, isNull, and, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { fetchTwitterUserLocation, fetchTweetCommenterLocations } from '@/lib/twitter-api';
-import { normalizeLocation, normalizeLocationCounts } from '@/lib/location-normalizer';
+import { normalizeLocationCounts } from '@/lib/location-normalizer';
 
 /**
  * Fetch location data for all clippers with Twitter handles.
@@ -36,8 +36,7 @@ export async function fetchClipperDemographics() {
       if (!clipper.twitterHandle) continue;
 
       try {
-        const rawLocation = await fetchTwitterUserLocation(clipper.twitterHandle);
-        const location = rawLocation ? normalizeLocation(rawLocation) : null;
+        const location = await fetchTwitterUserLocation(clipper.twitterHandle);
 
         await db
           .update(clipperProfiles)
