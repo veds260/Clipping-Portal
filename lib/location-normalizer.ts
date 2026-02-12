@@ -244,7 +244,8 @@ export function normalizeLocation(raw: string): string | null {
     }
   }
 
-  return null;
+  // Not fake and not mapped - return the original cleaned string
+  return cleaned;
 }
 
 /**
