@@ -6,6 +6,7 @@ import { clipperProfiles, clips, users } from '@/lib/db/schema';
 import { eq, isNotNull, isNull, and, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { fetchTwitterUserLocation, fetchTweetCommenterLocations } from '@/lib/twitter-api';
+import { normalizeLocation, normalizeLocationCounts } from '@/lib/location-normalizer';
 
 /**
  * Fetch location data for all clippers with Twitter handles.
@@ -35,7 +36,8 @@ export async function fetchClipperDemographics() {
       if (!clipper.twitterHandle) continue;
 
       try {
-        const location = await fetchTwitterUserLocation(clipper.twitterHandle);
+        const rawLocation = await fetchTwitterUserLocation(clipper.twitterHandle);
+        const location = rawLocation ? normalizeLocation(rawLocation) : null;
 
         await db
           .update(clipperProfiles)
@@ -82,12 +84,13 @@ export async function fetchClipCommenterDemographics(clipId: string) {
     }
 
     const result = await fetchTweetCommenterLocations(clip.tweetId);
+    const normalizedLocations = normalizeLocationCounts(result.locations);
 
     await db
       .update(clips)
       .set({
         commenterDemographics: {
-          locations: result.locations,
+          locations: normalizedLocations,
           totalFetched: result.totalFetched,
           fetchedAt: new Date().toISOString(),
         },
@@ -96,7 +99,7 @@ export async function fetchClipCommenterDemographics(clipId: string) {
       .where(eq(clips.id, clipId));
 
     revalidatePath('/admin/clips');
-    return { success: true, ...result };
+    return { success: true, locations: normalizedLocations, totalFetched: result.totalFetched };
   } catch (error) {
     console.error('[demographics] clip commenter fetch error:', error);
     return { error: 'Failed to fetch commenter demographics' };
@@ -133,12 +136,13 @@ export async function fetchAllClipCommenterDemographics() {
 
       try {
         const result = await fetchTweetCommenterLocations(clip.tweetId);
+        const normalizedLocations = normalizeLocationCounts(result.locations);
 
         await db
           .update(clips)
           .set({
             commenterDemographics: {
-              locations: result.locations,
+              locations: normalizedLocations,
               totalFetched: result.totalFetched,
               fetchedAt: new Date().toISOString(),
             },

@@ -8,6 +8,7 @@ import { clipperProfiles, campaigns, clips } from '@/lib/db/schema';
 import { desc, isNotNull, sql } from 'drizzle-orm';
 import { ClippersTable } from './clippers-table';
 import { DemographicsCard } from './demographics-card';
+import { normalizeLocation, normalizeLocationCounts } from '@/lib/location-normalizer';
 import { Card, CardContent } from '@/components/ui/card';
 import { Users, UserCheck, Clock, UserX } from 'lucide-react';
 
@@ -42,8 +43,11 @@ async function getDemographicsData(allClippers: Awaited<ReturnType<typeof getCli
   for (const clipper of allClippers) {
     if (clipper.location) {
       clippersWithLocation++;
-      const loc = clipper.location;
-      locationCounts.set(loc, (locationCounts.get(loc) || 0) + 1);
+      // Normalize to real country (filters out meme locations)
+      const normalized = normalizeLocation(clipper.location);
+      if (normalized) {
+        locationCounts.set(normalized, (locationCounts.get(normalized) || 0) + 1);
+      }
     }
   }
 
@@ -68,7 +72,9 @@ async function getDemographicsData(allClippers: Awaited<ReturnType<typeof getCli
     if (!demo) continue;
 
     totalCommenters += demo.totalFetched;
-    for (const loc of demo.locations) {
+    // Normalize commenter locations to real countries
+    const normalizedLocs = normalizeLocationCounts(demo.locations);
+    for (const loc of normalizedLocs) {
       commenterCounts.set(loc.location, (commenterCounts.get(loc.location) || 0) + loc.count);
     }
   }
