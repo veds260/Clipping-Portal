@@ -45,6 +45,30 @@ export async function runStartupMigrations() {
       END $$;
     `);
 
+    // Add location column to clipper_profiles
+    await db.execute(sql`
+      DO $$ BEGIN
+        ALTER TABLE clipper_profiles ADD COLUMN IF NOT EXISTS location VARCHAR(255);
+      EXCEPTION WHEN duplicate_column THEN NULL;
+      END $$;
+    `);
+
+    // Add demographics_updated_at column to clipper_profiles
+    await db.execute(sql`
+      DO $$ BEGIN
+        ALTER TABLE clipper_profiles ADD COLUMN IF NOT EXISTS demographics_updated_at TIMESTAMP;
+      EXCEPTION WHEN duplicate_column THEN NULL;
+      END $$;
+    `);
+
+    // Add commenter_demographics column to clips
+    await db.execute(sql`
+      DO $$ BEGIN
+        ALTER TABLE clips ADD COLUMN IF NOT EXISTS commenter_demographics JSONB;
+      EXCEPTION WHEN duplicate_column THEN NULL;
+      END $$;
+    `);
+
     console.log('[startup-migrate] Migrations complete.');
   } catch (error) {
     console.error('[startup-migrate] Migration error (non-fatal):', error);

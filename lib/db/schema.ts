@@ -42,6 +42,8 @@ export const clipperProfiles = pgTable('clipper_profiles', {
   clipsApproved: integer('clips_approved').default(0),
   avgViewsPerClip: integer('avg_views_per_clip').default(0),
   status: clipperStatusEnum('status').default('pending'),
+  location: varchar('location', { length: 255 }),
+  demographicsUpdatedAt: timestamp('demographics_updated_at'),
   lastSetPassword: varchar('last_set_password', { length: 255 }),
   notes: text('notes'),
   onboardedAt: timestamp('onboarded_at'),
@@ -137,6 +139,13 @@ export const clips = pgTable('clips', {
 
   // Tag compliance
   tagCompliance: jsonb('tag_compliance').$type<{ compliant: boolean; found: string[]; missing: string[] }>(),
+
+  // Commenter demographics (aggregated location data from reply authors)
+  commenterDemographics: jsonb('commenter_demographics').$type<{
+    locations: { location: string; count: number }[];
+    totalFetched: number;
+    fetchedAt: string;
+  }>(),
 
   // Status and approval
   status: clipStatusEnum('status').default('pending'),

@@ -29,7 +29,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { MoreHorizontal, Check, X, ExternalLink, Eye, ThumbsUp, MessageCircle, Share2, Copy, CheckCircle, XCircle } from 'lucide-react';
+import { MoreHorizontal, Check, X, ExternalLink, Eye, ThumbsUp, MessageCircle, Share2, Copy, CheckCircle, XCircle, MapPin } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { approveClip, rejectClip } from '@/lib/actions/clips';
 import { format } from 'date-fns';
@@ -47,6 +47,11 @@ interface Clip {
   status: string | null;
   rejectionReason: string | null;
   tagCompliance: { compliant: boolean; found: string[]; missing: string[] } | null;
+  commenterDemographics: {
+    locations: { location: string; count: number }[];
+    totalFetched: number;
+    fetchedAt: string;
+  } | null;
   isDuplicate: boolean | null;
   duplicateOfClipId: string | null;
   createdAt: Date | null;
@@ -175,6 +180,7 @@ export function ClipsTable({ clips }: ClipsTableProps) {
               <TableHead>Tag Compliance</TableHead>
               <TableHead>Views</TableHead>
               <TableHead>Engagement</TableHead>
+              <TableHead>Audience</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Submitted</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -183,7 +189,7 @@ export function ClipsTable({ clips }: ClipsTableProps) {
           <TableBody>
             {filteredClips.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                   No clips found
                 </TableCell>
               </TableRow>
@@ -269,6 +275,33 @@ export function ClipsTable({ clips }: ClipsTableProps) {
                         <MessageCircle className="h-3 w-3" /> {formatNumber(clip.comments)}
                       </span>
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    {clip.commenterDemographics && clip.commenterDemographics.locations.length > 0 ? (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="space-y-0.5 max-w-[120px]">
+                              {clip.commenterDemographics.locations.slice(0, 3).map((loc, i) => (
+                                <div key={i} className="flex items-center gap-1 text-xs">
+                                  <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
+                                  <span className="truncate">{loc.location}</span>
+                                  <span className="text-muted-foreground ml-auto shrink-0">{loc.count}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="left" className="max-w-[250px]">
+                            <p className="font-medium mb-1">Commenter Locations ({clip.commenterDemographics.totalFetched} sampled)</p>
+                            {clip.commenterDemographics.locations.slice(0, 10).map((loc, i) => (
+                              <p key={i} className="text-xs">{loc.location}: {loc.count}</p>
+                            ))}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">-</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-1">

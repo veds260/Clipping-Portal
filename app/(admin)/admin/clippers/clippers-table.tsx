@@ -38,7 +38,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { MoreHorizontal, Eye, Film, DollarSign, TrendingUp, Key, Trash2, Mail, Wallet, Megaphone, Plus, Copy } from 'lucide-react';
+import { MoreHorizontal, Eye, Film, DollarSign, TrendingUp, Key, Trash2, Mail, Wallet, Megaphone, Plus, Copy, MapPin } from 'lucide-react';
 import { updateClipperTier, updateClipperStatus, updateClipperNotes } from '@/lib/actions/clippers';
 import { updateUserPassword, updateUserEmail, deleteClipperData } from '@/lib/actions/admin-users';
 import { assignClipperToCampaign } from '@/lib/actions/campaign-assignments';
@@ -55,6 +55,7 @@ interface Clipper {
   avgViewsPerClip: number | null;
   status: string | null;
   notes: string | null;
+  location: string | null;
   onboardedAt: Date | null;
   createdAt: Date | null;
   lastSetPassword: string | null;
@@ -331,6 +332,7 @@ export function ClippersTable({ clippers, campaigns = [] }: ClippersTableProps) 
               <TableHead>Credentials</TableHead>
               <TableHead>Tier</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Location</TableHead>
               <TableHead>Clips</TableHead>
               <TableHead>Total Views</TableHead>
               <TableHead>Avg Views</TableHead>
@@ -342,7 +344,7 @@ export function ClippersTable({ clippers, campaigns = [] }: ClippersTableProps) 
           <TableBody>
             {filteredClippers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                   No clippers found
                 </TableCell>
               </TableRow>
@@ -440,6 +442,18 @@ export function ClippersTable({ clippers, campaigns = [] }: ClippersTableProps) 
                     <Badge className={statusColors[clipper.status || 'pending']} variant="outline">
                       {clipper.status || 'pending'}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {clipper.location ? (
+                      <div className="flex items-center gap-1.5 max-w-[140px]">
+                        <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span className="text-sm truncate" title={clipper.location}>
+                          {clipper.location}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">-</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">

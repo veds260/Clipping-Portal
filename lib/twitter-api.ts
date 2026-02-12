@@ -169,6 +169,96 @@ export async function fetchTweetByUrl(url: string): Promise<TweetData | null> {
 }
 
 /**
+ * Fetch Twitter user location by handle
+ */
+export async function fetchTwitterUserLocation(handle: string): Promise<string | null> {
+  const apiKey = process.env.TWITTER_API_KEY;
+  if (!apiKey) return null;
+
+  const username = handle.replace(/^@/, '');
+
+  try {
+    const response = await fetch(
+      `${TWITTER_API_BASE}/twitter/user/info?userName=${encodeURIComponent(username)}`,
+      { headers: { 'X-API-Key': apiKey } }
+    );
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    const location =
+      data.data?.location ||
+      data.location ||
+      null;
+
+    return location && location.trim() ? location.trim() : null;
+  } catch (error) {
+    console.error('Failed to fetch Twitter user location:', error);
+    return null;
+  }
+}
+
+/**
+ * Fetch commenter locations from tweet replies.
+ * Returns aggregated location counts from reply authors.
+ */
+export async function fetchTweetCommenterLocations(
+  tweetId: string,
+  maxPages: number = 2
+): Promise<{ locations: { location: string; count: number }[]; totalFetched: number }> {
+  const apiKey = process.env.TWITTER_API_KEY;
+  if (!apiKey) return { locations: [], totalFetched: 0 };
+
+  const locationCounts = new Map<string, number>();
+  let totalFetched = 0;
+  let cursor: string | undefined;
+
+  try {
+    for (let page = 0; page < maxPages; page++) {
+      const params = new URLSearchParams({ tweetId });
+      if (cursor) params.set('cursor', cursor);
+
+      const response = await fetch(
+        `${TWITTER_API_BASE}/twitter/tweet/replies/v2?${params}`,
+        { headers: { 'X-API-Key': apiKey } }
+      );
+
+      if (!response.ok) break;
+
+      const data = await response.json();
+      const tweets = data.tweets || [];
+
+      for (const tweet of tweets) {
+        totalFetched++;
+        const location =
+          tweet.author?.location ||
+          tweet.user?.location ||
+          null;
+
+        if (location && location.trim()) {
+          const loc = location.trim();
+          locationCounts.set(loc, (locationCounts.get(loc) || 0) + 1);
+        }
+      }
+
+      if (!data.has_next_page || !data.next_cursor) break;
+      cursor = data.next_cursor;
+
+      // Rate limiting
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+  } catch (error) {
+    console.error('Failed to fetch tweet commenter locations:', error);
+  }
+
+  const locations = Array.from(locationCounts.entries())
+    .map(([location, count]) => ({ location, count }))
+    .sort((a, b) => b.count - a.count);
+
+  return { locations, totalFetched };
+}
+
+/**
  * Check if tweet content matches required tags/mentions.
  * Tags can be: @mentions, #hashtags, URLs, or plain text patterns
  */

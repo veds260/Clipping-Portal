@@ -4,9 +4,10 @@ import { db } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-import { clipperProfiles, campaigns } from '@/lib/db/schema';
-import { desc } from 'drizzle-orm';
+import { clipperProfiles, campaigns, clips } from '@/lib/db/schema';
+import { desc, isNotNull, sql } from 'drizzle-orm';
 import { ClippersTable } from './clippers-table';
+import { DemographicsCard } from './demographics-card';
 import { Card, CardContent } from '@/components/ui/card';
 import { Users, UserCheck, Clock, UserX } from 'lucide-react';
 
@@ -33,6 +34,57 @@ async function getCampaigns() {
   }));
 }
 
+async function getDemographicsData(allClippers: Awaited<ReturnType<typeof getClippers>>) {
+  // Aggregate clipper locations
+  const locationCounts = new Map<string, number>();
+  let clippersWithLocation = 0;
+
+  for (const clipper of allClippers) {
+    if (clipper.location) {
+      clippersWithLocation++;
+      const loc = clipper.location;
+      locationCounts.set(loc, (locationCounts.get(loc) || 0) + 1);
+    }
+  }
+
+  const clipperLocations = Array.from(locationCounts.entries())
+    .map(([location, count]) => ({ location, count }))
+    .sort((a, b) => b.count - a.count);
+
+  // Aggregate commenter demographics across all clips
+  const allClipsWithDemographics = await db
+    .select({ commenterDemographics: clips.commenterDemographics })
+    .from(clips)
+    .where(isNotNull(clips.commenterDemographics));
+
+  const commenterCounts = new Map<string, number>();
+  let totalCommenters = 0;
+
+  for (const clip of allClipsWithDemographics) {
+    const demo = clip.commenterDemographics as {
+      locations: { location: string; count: number }[];
+      totalFetched: number;
+    } | null;
+    if (!demo) continue;
+
+    totalCommenters += demo.totalFetched;
+    for (const loc of demo.locations) {
+      commenterCounts.set(loc.location, (commenterCounts.get(loc.location) || 0) + loc.count);
+    }
+  }
+
+  const commenterLocations = Array.from(commenterCounts.entries())
+    .map(([location, count]) => ({ location, count }))
+    .sort((a, b) => b.count - a.count);
+
+  return {
+    clipperLocations,
+    clippersWithLocation,
+    commenterLocations,
+    totalCommenters,
+  };
+}
+
 export default async function AdminClippersPage() {
   const session = await auth();
 
@@ -44,6 +96,8 @@ export default async function AdminClippersPage() {
     getClippers(),
     getCampaigns(),
   ]);
+
+  const demographics = await getDemographicsData(clippers);
 
   const activeCount = clippers.filter(c => c.status === 'active').length;
   const pendingCount = clippers.filter(c => c.status === 'pending').length;
@@ -111,6 +165,17 @@ export default async function AdminClippersPage() {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Location Demographics */}
+      <div className="mb-6">
+        <DemographicsCard
+          clipperLocations={demographics.clipperLocations}
+          totalClippers={clippers.length}
+          clippersWithLocation={demographics.clippersWithLocation}
+          commenterLocations={demographics.commenterLocations}
+          totalCommenters={demographics.totalCommenters}
+        />
       </div>
 
       <ClippersTable clippers={clippers} campaigns={campaignsList} />
