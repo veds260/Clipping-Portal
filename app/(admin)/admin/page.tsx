@@ -19,7 +19,7 @@ async function getStats() {
       totalClips: sql<number>`count(*)`,
       clipsThisWeek: sql<number>`count(*) filter (where ${clips.createdAt} >= ${weekAgoISO}::timestamp)`,
       pendingClips: sql<number>`count(*) filter (where ${clips.status} = 'pending')`,
-      totalViews: sql<number>`coalesce(sum(${clips.views}), 0)`,
+      totalViews: sql<number>`coalesce(sum(CASE WHEN ${clips.excludedFromStats} = false OR ${clips.excludedFromStats} IS NULL THEN ${clips.views} ELSE 0 END), 0)`,
     }).from(clips),
 
     db.select({

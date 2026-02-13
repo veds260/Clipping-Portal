@@ -29,9 +29,9 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { MoreHorizontal, Check, X, ExternalLink, Eye, ThumbsUp, MessageCircle, Share2, Copy, CheckCircle, XCircle, MapPin } from 'lucide-react';
+import { MoreHorizontal, Check, X, ExternalLink, Eye, ThumbsUp, MessageCircle, Share2, Copy, CheckCircle, XCircle, MapPin, EyeOff } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { approveClip, rejectClip } from '@/lib/actions/clips';
+import { approveClip, rejectClip, toggleClipExcluded } from '@/lib/actions/clips';
 import { format } from 'date-fns';
 
 interface Clip {
@@ -52,6 +52,7 @@ interface Clip {
     totalFetched: number;
     fetchedAt: string;
   } | null;
+  excludedFromStats: boolean | null;
   isDuplicate: boolean | null;
   duplicateOfClipId: string | null;
   createdAt: Date | null;
@@ -134,6 +135,18 @@ export function ClipsTable({ clips }: ClipsTableProps) {
   const openRejectDialog = (clip: Clip) => {
     setSelectedClip(clip);
     setRejectDialogOpen(true);
+  };
+
+  const handleToggleExcluded = async (clipId: string) => {
+    setIsLoading(true);
+    const result = await toggleClipExcluded(clipId);
+    setIsLoading(false);
+
+    if (result.error) {
+      toast.error(result.error);
+    } else {
+      toast.success(result.excluded ? 'Clip excluded from campaign stats' : 'Clip included in campaign stats');
+    }
   };
 
   const formatNumber = (num: number | null) => {
@@ -308,6 +321,12 @@ export function ClipsTable({ clips }: ClipsTableProps) {
                       <Badge className={statusColors[clip.status || 'pending'] || ''} variant="outline">
                         {clip.status || 'pending'}
                       </Badge>
+                      {clip.excludedFromStats && (
+                        <Badge className="bg-orange-100 text-orange-800 border-orange-300" variant="outline">
+                          <EyeOff className="h-3 w-3 mr-1" />
+                          Excluded
+                        </Badge>
+                      )}
                       {clip.isDuplicate && (
                         <TooltipProvider>
                           <Tooltip>
@@ -336,18 +355,22 @@ export function ClipsTable({ clips }: ClipsTableProps) {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        {clip.status === 'pending' && (
-                          <>
-                            <DropdownMenuItem onClick={() => handleApprove(clip.id)}>
-                              <Check className="h-4 w-4 mr-2 text-green-500" />
-                              Approve
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => openRejectDialog(clip)}>
-                              <X className="h-4 w-4 mr-2 text-red-500" />
-                              Reject
-                            </DropdownMenuItem>
-                          </>
+                        {clip.status !== 'approved' && (
+                          <DropdownMenuItem onClick={() => handleApprove(clip.id)}>
+                            <Check className="h-4 w-4 mr-2 text-green-500" />
+                            Approve
+                          </DropdownMenuItem>
                         )}
+                        {clip.status !== 'rejected' && (
+                          <DropdownMenuItem onClick={() => openRejectDialog(clip)}>
+                            <X className="h-4 w-4 mr-2 text-red-500" />
+                            Reject
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem onClick={() => handleToggleExcluded(clip.id)}>
+                          <EyeOff className="h-4 w-4 mr-2 text-orange-500" />
+                          {clip.excludedFromStats ? 'Include in Stats' : 'Exclude from Stats'}
+                        </DropdownMenuItem>
                         <DropdownMenuItem asChild>
                           <a href={clip.platformPostUrl} target="_blank" rel="noopener noreferrer">
                             <ExternalLink className="h-4 w-4 mr-2" />

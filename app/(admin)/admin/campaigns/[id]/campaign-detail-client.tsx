@@ -37,8 +37,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
-import { Eye, ExternalLink, UserPlus, MoreHorizontal, CheckCircle, XCircle } from 'lucide-react';
+import { Eye, ExternalLink, UserPlus, MoreHorizontal, CheckCircle, XCircle, EyeOff } from 'lucide-react';
 import { assignClipperToCampaign, removeClipperFromCampaign, updateClipperCampaignTier } from '@/lib/actions/campaign-assignments';
+import { toggleClipExcluded } from '@/lib/actions/clips';
 import { format } from 'date-fns';
 
 interface Assignment {
@@ -74,6 +75,7 @@ interface CampaignClip {
   status: string | null;
   payoutAmount: string | null;
   tagCompliance: { compliant: boolean; found: string[]; missing: string[] } | null;
+  excludedFromStats: boolean | null;
   postedAt: string | null;
   createdAt: string | null;
   clipperId: string | null;
@@ -198,6 +200,18 @@ export function CampaignDetailClient({
     } else {
       toast.success('Tier updated');
       setTierDialogOpen(false);
+    }
+  };
+
+  const handleToggleExcluded = async (clipId: string) => {
+    setIsLoading(true);
+    const result = await toggleClipExcluded(clipId);
+    setIsLoading(false);
+
+    if (result.error) {
+      toast.error(result.error);
+    } else {
+      toast.success(result.excluded ? 'Clip excluded from campaign stats' : 'Clip included in campaign stats');
     }
   };
 
@@ -338,7 +352,7 @@ export function CampaignDetailClient({
                       <TableHead>Status</TableHead>
                       <TableHead>Payout</TableHead>
                       <TableHead>Posted</TableHead>
-                      <TableHead></TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -385,12 +399,20 @@ export function CampaignDetailClient({
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge
-                            className={clipStatusColors[clip.status || 'pending']}
-                            variant="outline"
-                          >
-                            {clip.status || 'pending'}
-                          </Badge>
+                          <div className="flex flex-col gap-1">
+                            <Badge
+                              className={clipStatusColors[clip.status || 'pending']}
+                              variant="outline"
+                            >
+                              {clip.status || 'pending'}
+                            </Badge>
+                            {clip.excludedFromStats && (
+                              <Badge className="bg-orange-100 text-orange-800 border-orange-300" variant="outline">
+                                <EyeOff className="h-3 w-3 mr-1" />
+                                Excluded
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <span className="text-sm">
@@ -400,14 +422,28 @@ export function CampaignDetailClient({
                         <TableCell className="text-sm text-muted-foreground">
                           {clip.postedAt ? format(new Date(clip.postedAt), 'MMM d, yyyy') : '-'}
                         </TableCell>
-                        <TableCell>
-                          {clip.platformPostUrl && (
-                            <a href={clip.platformPostUrl} target="_blank" rel="noopener noreferrer">
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="sm">
-                                <ExternalLink className="h-4 w-4" />
+                                <MoreHorizontal className="h-4 w-4" />
                               </Button>
-                            </a>
-                          )}
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleToggleExcluded(clip.id)}>
+                                <EyeOff className="h-4 w-4 mr-2 text-orange-500" />
+                                {clip.excludedFromStats ? 'Include in Stats' : 'Exclude from Stats'}
+                              </DropdownMenuItem>
+                              {clip.platformPostUrl && (
+                                <DropdownMenuItem asChild>
+                                  <a href={clip.platformPostUrl} target="_blank" rel="noopener noreferrer">
+                                    <ExternalLink className="h-4 w-4 mr-2" />
+                                    View Post
+                                  </a>
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     ))}

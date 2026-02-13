@@ -149,22 +149,30 @@ export async function approveClip(clipId: string) {
   }
 
   try {
+    // Fetch current clip to check previous status
+    const clip = await db.query.clips.findFirst({
+      where: eq(clips.id, clipId),
+    });
+
+    if (!clip) {
+      return { error: 'Clip not found' };
+    }
+
+    const wasApproved = clip.status === 'approved';
+
     await db
       .update(clips)
       .set({
         status: 'approved',
         approvedBy: session.user.id,
         approvedAt: new Date(),
+        rejectionReason: null,
         updatedAt: new Date(),
       })
       .where(eq(clips.id, clipId));
 
-    // Update clipper's approved count
-    const clip = await db.query.clips.findFirst({
-      where: eq(clips.id, clipId),
-    });
-
-    if (clip?.clipperId) {
+    // Only increment approved count if it wasn't already approved
+    if (!wasApproved && clip.clipperId) {
       await db
         .update(clipperProfiles)
         .set({
@@ -175,6 +183,7 @@ export async function approveClip(clipId: string) {
     }
 
     revalidatePath('/admin/clips');
+    revalidatePath('/admin/campaigns');
     return { success: true };
   } catch (error) {
     console.error('Error approving clip:', error);
@@ -189,6 +198,17 @@ export async function rejectClip(clipId: string, reason: string) {
   }
 
   try {
+    // Fetch current clip to check previous status
+    const clip = await db.query.clips.findFirst({
+      where: eq(clips.id, clipId),
+    });
+
+    if (!clip) {
+      return { error: 'Clip not found' };
+    }
+
+    const wasApproved = clip.status === 'approved';
+
     await db
       .update(clips)
       .set({
@@ -198,11 +218,57 @@ export async function rejectClip(clipId: string, reason: string) {
       })
       .where(eq(clips.id, clipId));
 
+    // Decrement approved count if it was previously approved
+    if (wasApproved && clip.clipperId) {
+      await db
+        .update(clipperProfiles)
+        .set({
+          clipsApproved: sql`GREATEST(clips_approved - 1, 0)`,
+          updatedAt: new Date(),
+        })
+        .where(eq(clipperProfiles.id, clip.clipperId));
+    }
+
     revalidatePath('/admin/clips');
+    revalidatePath('/admin/campaigns');
     return { success: true };
   } catch (error) {
     console.error('Error rejecting clip:', error);
     return { error: 'Failed to reject clip' };
+  }
+}
+
+export async function toggleClipExcluded(clipId: string) {
+  const session = await auth();
+  if (!session || session.user.role !== 'admin') {
+    return { error: 'Unauthorized' };
+  }
+
+  try {
+    const clip = await db.query.clips.findFirst({
+      where: eq(clips.id, clipId),
+    });
+
+    if (!clip) {
+      return { error: 'Clip not found' };
+    }
+
+    const newValue = !clip.excludedFromStats;
+
+    await db
+      .update(clips)
+      .set({
+        excludedFromStats: newValue,
+        updatedAt: new Date(),
+      })
+      .where(eq(clips.id, clipId));
+
+    revalidatePath('/admin/clips');
+    revalidatePath('/admin/campaigns');
+    return { success: true, excluded: newValue };
+  } catch (error) {
+    console.error('Error toggling clip exclusion:', error);
+    return { error: 'Failed to update clip' };
   }
 }
 

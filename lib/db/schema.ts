@@ -157,6 +157,9 @@ export const clips = pgTable('clips', {
   payoutAmount: decimal('payout_amount', { precision: 10, scale: 2 }),
   payoutBatchId: uuid('payout_batch_id'),
 
+  // Exclude from campaign stats (views/impressions)
+  excludedFromStats: boolean('excluded_from_stats').default(false),
+
   // Duplicate detection
   isDuplicate: boolean('is_duplicate').default(false),
   duplicateOfClipId: uuid('duplicate_of_clip_id'),

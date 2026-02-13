@@ -30,13 +30,13 @@ async function getCampaigns() {
     .from(campaigns)
     .orderBy(campaigns.createdAt);
 
-  // Get clip stats for each campaign
+  // Get clip stats for each campaign (exclude clips flagged as excluded from stats)
   const campaignStats = await db
     .select({
       campaignId: clips.campaignId,
       clipsCount: sql<number>`count(*)`.as('clips_count'),
-      totalViews: sql<number>`coalesce(sum(${clips.views}), 0)`.as('total_views'),
-      totalPayout: sql<number>`coalesce(sum(cast(${clips.payoutAmount} as decimal)), 0)`.as('total_payout'),
+      totalViews: sql<number>`coalesce(sum(CASE WHEN ${clips.excludedFromStats} = false OR ${clips.excludedFromStats} IS NULL THEN ${clips.views} ELSE 0 END), 0)`.as('total_views'),
+      totalPayout: sql<number>`coalesce(sum(CASE WHEN ${clips.excludedFromStats} = false OR ${clips.excludedFromStats} IS NULL THEN cast(${clips.payoutAmount} as decimal) ELSE 0 END), 0)`.as('total_payout'),
     })
     .from(clips)
     .groupBy(clips.campaignId);

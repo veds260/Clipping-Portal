@@ -36,6 +36,7 @@ async function getCampaignData(id: string) {
       status: clips.status,
       payoutAmount: clips.payoutAmount,
       tagCompliance: clips.tagCompliance,
+      excludedFromStats: clips.excludedFromStats,
       postedAt: clips.postedAt,
       createdAt: clips.createdAt,
       clipperId: clips.clipperId,
@@ -70,9 +71,10 @@ async function getCampaignData(id: string) {
   const assignedClipperIds = new Set(assignments.map(a => a.clipperId));
   const availableClippers = allActiveClippers.filter(c => !assignedClipperIds.has(c.id));
 
-  // Calculate stats
-  const totalViews = campaignClips.reduce((sum, clip) => sum + (clip.views || 0), 0);
-  const totalPayout = campaignClips.reduce((sum, clip) => sum + parseFloat(clip.payoutAmount || '0'), 0);
+  // Calculate stats (exclude clips marked as excluded from stats)
+  const includedClips = campaignClips.filter(clip => !clip.excludedFromStats);
+  const totalViews = includedClips.reduce((sum, clip) => sum + (clip.views || 0), 0);
+  const totalPayout = includedClips.reduce((sum, clip) => sum + parseFloat(clip.payoutAmount || '0'), 0);
 
   // Calculate per-clipper stats from clips
   const clipperClipCounts = new Map<string, { submitted: number; earnings: number }>();

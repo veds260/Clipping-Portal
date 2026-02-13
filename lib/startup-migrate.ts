@@ -69,6 +69,14 @@ export async function runStartupMigrations() {
       END $$;
     `);
 
+    // Add excluded_from_stats column to clips
+    await db.execute(sql`
+      DO $$ BEGIN
+        ALTER TABLE clips ADD COLUMN IF NOT EXISTS excluded_from_stats BOOLEAN DEFAULT false;
+      EXCEPTION WHEN duplicate_column THEN NULL;
+      END $$;
+    `);
+
     console.log('[startup-migrate] Migrations complete.');
   } catch (error) {
     console.error('[startup-migrate] Migration error (non-fatal):', error);
