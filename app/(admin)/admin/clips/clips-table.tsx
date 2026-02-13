@@ -29,9 +29,9 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { MoreHorizontal, Check, X, ExternalLink, Eye, ThumbsUp, MessageCircle, Share2, Copy, CheckCircle, XCircle, MapPin, EyeOff } from 'lucide-react';
+import { MoreHorizontal, Check, X, ExternalLink, Eye, ThumbsUp, MessageCircle, Share2, Copy, CheckCircle, XCircle, MapPin, EyeOff, RefreshCw } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { approveClip, rejectClip, toggleClipExcluded } from '@/lib/actions/clips';
+import { approveClip, rejectClip, toggleClipExcluded, refreshClipMetrics, refreshAllClipMetrics } from '@/lib/actions/clips';
 import { format } from 'date-fns';
 
 interface Clip {
@@ -94,6 +94,8 @@ export function ClipsTable({ clips }: ClipsTableProps) {
   const [selectedClip, setSelectedClip] = useState<Clip | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshingClipId, setRefreshingClipId] = useState<string | null>(null);
 
   const filteredClips = filter === 'all'
     ? clips
@@ -137,6 +139,31 @@ export function ClipsTable({ clips }: ClipsTableProps) {
     setRejectDialogOpen(true);
   };
 
+  const handleRefreshClip = async (clipId: string) => {
+    setRefreshingClipId(clipId);
+    const result = await refreshClipMetrics(clipId);
+    setRefreshingClipId(null);
+
+    if (result.error) {
+      toast.error(result.error);
+    } else {
+      toast.success(`Views updated: ${result.views?.toLocaleString() || 0}`);
+    }
+  };
+
+  const handleRefreshAll = async () => {
+    setIsRefreshing(true);
+    toast.info('Refreshing all clips... this may take a while');
+    const result = await refreshAllClipMetrics();
+    setIsRefreshing(false);
+
+    if (result.error) {
+      toast.error(result.error);
+    } else {
+      toast.success(`Updated ${result.updated}/${result.total} clips${result.failed ? ` (${result.failed} failed)` : ''}`);
+    }
+  };
+
   const handleToggleExcluded = async (clipId: string) => {
     setIsLoading(true);
     const result = await toggleClipExcluded(clipId);
@@ -158,7 +185,7 @@ export function ClipsTable({ clips }: ClipsTableProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 flex-wrap items-center">
         {['all', 'pending', 'approved', 'rejected', 'paid'].map((status) => (
           <Button
             key={status}
@@ -180,6 +207,16 @@ export function ClipsTable({ clips }: ClipsTableProps) {
             Duplicates ({duplicateCount})
           </Button>
         )}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRefreshAll}
+          disabled={isRefreshing}
+          className="ml-auto"
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+          {isRefreshing ? 'Refreshing...' : 'Refresh All Views'}
+        </Button>
       </div>
 
       <div className="rounded-md border">
@@ -367,6 +404,13 @@ export function ClipsTable({ clips }: ClipsTableProps) {
                             Reject
                           </DropdownMenuItem>
                         )}
+                        <DropdownMenuItem
+                          onClick={() => handleRefreshClip(clip.id)}
+                          disabled={refreshingClipId === clip.id}
+                        >
+                          <RefreshCw className={`h-4 w-4 mr-2 text-blue-500 ${refreshingClipId === clip.id ? 'animate-spin' : ''}`} />
+                          {refreshingClipId === clip.id ? 'Refreshing...' : 'Refresh Views'}
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleToggleExcluded(clip.id)}>
                           <EyeOff className="h-4 w-4 mr-2 text-orange-500" />
                           {clip.excludedFromStats ? 'Include in Stats' : 'Exclude from Stats'}

@@ -344,6 +344,91 @@ export async function refreshClipMetrics(clipId: string) {
   }
 }
 
+export async function refreshAllClipMetrics() {
+  const session = await auth();
+  if (!session || session.user.role !== 'admin') {
+    return { error: 'Unauthorized' };
+  }
+
+  try {
+    const allClips = await db.query.clips.findMany({
+      where: and(
+        sql`${clips.status} IN ('pending', 'approved')`,
+        sql`${clips.tweetId} IS NOT NULL`
+      ),
+      with: { campaign: true },
+    });
+
+    let updated = 0;
+    let failed = 0;
+    const updatedClipperIds = new Set<string>();
+
+    for (const clip of allClips) {
+      try {
+        const tweetData = await fetchTweetByUrl(clip.platformPostUrl);
+        if (!tweetData) {
+          failed++;
+          continue;
+        }
+
+        let tagCompliance = null;
+        if (clip.campaign?.requiredTags && (clip.campaign.requiredTags as string[]).length > 0) {
+          tagCompliance = checkTagCompliance(
+            tweetData.text,
+            tweetData.entities,
+            clip.campaign.requiredTags as string[]
+          );
+        }
+
+        await db
+          .update(clips)
+          .set({
+            views: tweetData.views,
+            likes: tweetData.likes,
+            retweets: tweetData.retweets,
+            comments: tweetData.replies,
+            impressions: tweetData.impressions,
+            tweetText: tweetData.text,
+            tagCompliance,
+            metricsUpdatedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(clips.id, clip.id));
+
+        if (clip.clipperId) {
+          updatedClipperIds.add(clip.clipperId);
+        }
+        updated++;
+      } catch {
+        failed++;
+      }
+    }
+
+    // Recalculate totalViews for all affected clippers
+    for (const clipperId of updatedClipperIds) {
+      const clipperClips = await db.query.clips.findMany({
+        where: eq(clips.clipperId, clipperId),
+      });
+      const totalViews = clipperClips.reduce((sum, c) => sum + (c.views || 0), 0);
+      const avgViews = clipperClips.length > 0 ? Math.round(totalViews / clipperClips.length) : 0;
+
+      await db
+        .update(clipperProfiles)
+        .set({ totalViews, avgViewsPerClip: avgViews, updatedAt: new Date() })
+        .where(eq(clipperProfiles.id, clipperId));
+    }
+
+    revalidatePath('/admin/clips');
+    revalidatePath('/admin/clippers');
+    revalidatePath('/admin/campaigns');
+    revalidatePath('/admin');
+    return { success: true, updated, failed, total: allClips.length };
+  } catch (error) {
+    console.error('Error refreshing all metrics:', error);
+    return { error: 'Failed to refresh metrics' };
+  }
+}
+
 export async function checkDuplicateUrl(url: string) {
   try {
     const existingClip = await db.query.clips.findFirst({
