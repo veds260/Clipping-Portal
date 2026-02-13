@@ -38,7 +38,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { MoreHorizontal, Eye, Film, DollarSign, TrendingUp, Key, Trash2, Mail, Wallet, Megaphone, Plus, Copy, MapPin } from 'lucide-react';
+import { MoreHorizontal, Eye, Film, DollarSign, TrendingUp, Key, Trash2, Mail, Wallet, Megaphone, Plus, Copy, MapPin, Download } from 'lucide-react';
 import { updateClipperTier, updateClipperStatus, updateClipperNotes } from '@/lib/actions/clippers';
 import { updateUserPassword, updateUserEmail, deleteClipperData } from '@/lib/actions/admin-users';
 import { assignClipperToCampaign } from '@/lib/actions/campaign-assignments';
@@ -286,6 +286,33 @@ export function ClippersTable({ clippers, campaigns = [] }: ClippersTableProps) 
     }
   };
 
+  const handleExportCSV = () => {
+    const headers = ['Name', 'X Handle', 'X Profile Link', 'Clips Submitted', 'Total Views'];
+    const rows = filteredClippers.map((c) => {
+      const handle = c.user.twitterHandle ? c.user.twitterHandle.replace(/^@/, '') : '';
+      return [
+        c.user.name || 'Unnamed',
+        handle ? `@${handle}` : '',
+        handle ? `https://x.com/${handle}` : '',
+        (c.clipsSubmitted || 0).toString(),
+        (c.totalViews || 0).toString(),
+      ];
+    });
+
+    const csvContent = [headers, ...rows]
+      .map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `clippers-export-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${filteredClippers.length} clippers`);
+  };
+
   const formatNumber = (num: number | null) => {
     if (num === null) return '0';
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
@@ -322,6 +349,10 @@ export function ClippersTable({ clippers, campaigns = [] }: ClippersTableProps) 
             </Button>
           ))}
         </div>
+        <Button variant="outline" size="sm" onClick={handleExportCSV} className="ml-auto">
+          <Download className="h-4 w-4 mr-2" />
+          Export CSV
+        </Button>
       </div>
 
       <div className="rounded-md border">
