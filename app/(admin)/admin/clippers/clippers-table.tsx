@@ -287,10 +287,12 @@ export function ClippersTable({ clippers, campaigns = [] }: ClippersTableProps) 
   };
 
   const handleExportCSV = () => {
-    const headers = ['Name', 'X Handle', 'X Profile Link', 'Clips Submitted', 'Total Views'];
-    const rows = filteredClippers.map((c) => {
+    const activeClippers = filteredClippers.filter(c => c.status === 'active');
+    const headers = ['S.No', 'Name', 'X Handle', 'X Profile Link', 'Clips Submitted', 'Total Views'];
+    const rows = activeClippers.map((c, i) => {
       const handle = c.user.twitterHandle ? c.user.twitterHandle.replace(/^@/, '') : '';
       return [
+        (i + 1).toString(),
         c.user.name || 'Unnamed',
         handle ? `@${handle}` : '',
         handle ? `https://x.com/${handle}` : '',
@@ -310,7 +312,7 @@ export function ClippersTable({ clippers, campaigns = [] }: ClippersTableProps) 
     link.download = `clippers-export-${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-    toast.success(`Exported ${filteredClippers.length} clippers`);
+    toast.success(`Exported ${activeClippers.length} active clippers`);
   };
 
   const formatNumber = (num: number | null) => {
