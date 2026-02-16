@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Eye, Film, DollarSign, ExternalLink, Edit, ArrowLeft } from 'lucide-react';
+import { Eye, Film, DollarSign, ExternalLink, Edit, ArrowLeft, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import { CampaignDetailClient } from './campaign-detail-client';
@@ -187,12 +187,20 @@ export default async function CampaignDetailPage({
             )}
           </div>
         </div>
-        <Link href={`/admin/campaigns/${id}/edit`}>
-          <Button>
-            <Edit className="h-4 w-4 mr-2" />
-            Edit Campaign
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          <a href={`/api/campaigns/${id}/export`} download>
+            <Button variant="outline">
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
+          </a>
+          <Link href={`/admin/campaigns/${id}/edit`}>
+            <Button>
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Campaign
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Stats */}
